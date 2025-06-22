@@ -279,4 +279,61 @@ MySQL Database
 管理ダッシュボード
 \`\`\`
 
+## 🚀 本番デプロイ手順
+
+### 初回デプロイ
+
+1. **AWS S3セットアップ**
+   ```bash
+   npm run deploy:setup-s3
+   ```
+
+2. **env.productionファイルの設定**
+   - AWS管理コンソールでアクセスキーを作成
+   - `env.production`ファイルに実際の値を設定
+
+3. **初回デプロイ実行**
+   ```bash
+   npm run deploy:initial
+   ```
+
+### GitHub Actionsセットアップ
+
+1. **GitHubリポジトリの作成**
+   ```bash
+   git remote add origin https://github.com/your-username/your-repo.git
+   git push -u origin main
+   ```
+
+2. **GitHub Secretsの設定**
+   リポジトリの Settings > Secrets and variables > Actions で以下を設定:
+   - `HEROKU_API_KEY`: Heroku API キー
+   - `HEROKU_EMAIL`: Herokuアカウントのメールアドレス
+   - `DATABASE_URL`: HerokuのPostgreSQL URL
+   - `AWS_REGION`: ap-northeast-1
+   - `AWS_ACCESS_KEY_ID`: AWS アクセスキー
+   - `AWS_SECRET_ACCESS_KEY`: AWS シークレットキー
+   - `AWS_S3_BUCKET_NAME`: feedback-app-bucket
+
+3. **継続的デプロイ**
+   - mainブランチへのpushで自動デプロイ
+   - プルリクエストのマージで自動デプロイ
+
+### 手動デプロイコマンド
+
+```bash
+# 環境変数設定
+npm run deploy:set-env
+
+# Herokuにデプロイ
+npm run deploy:heroku
+```
+
+## 🆘 サポート・リソース
+
+- [Heroku Documentation](https://devcenter.heroku.com/)
+- [Prisma Heroku Guide](https://www.prisma.io/docs/guides/deployment/deploying-to-heroku)
+- [Next.js Heroku Deployment](https://nextjs.org/docs/deployment)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+
 完全なエンタープライズ級フィードバック収集・管理システムが構築されました！🎉
