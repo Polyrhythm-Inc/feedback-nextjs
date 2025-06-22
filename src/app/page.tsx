@@ -201,8 +201,8 @@ export default function Home() {
               <button
                 onClick={() => setActiveTab('feedback')}
                 className={`${activeTab === 'feedback'
-                    ? 'bg-blue-100 text-blue-700 border-blue-500'
-                    : 'text-gray-500 hover:text-gray-700 border-transparent hover:border-gray-300'
+                  ? 'bg-blue-100 text-blue-700 border-blue-500'
+                  : 'text-gray-500 hover:text-gray-700 border-transparent hover:border-gray-300'
                   } px-6 py-3 border-b-2 font-medium text-sm transition-colors duration-200 flex items-center gap-2`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -216,8 +216,8 @@ export default function Home() {
               <button
                 onClick={() => setActiveTab('logs')}
                 className={`${activeTab === 'logs'
-                    ? 'bg-blue-100 text-blue-700 border-blue-500'
-                    : 'text-gray-500 hover:text-gray-700 border-transparent hover:border-gray-300'
+                  ? 'bg-blue-100 text-blue-700 border-blue-500'
+                  : 'text-gray-500 hover:text-gray-700 border-transparent hover:border-gray-300'
                   } px-6 py-3 border-b-2 font-medium text-sm transition-colors duration-200 flex items-center gap-2`}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -265,15 +265,15 @@ export default function Home() {
                           key={feedback.id}
                           onClick={() => setSelectedFeedback(feedback)}
                           className={`group p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedFeedback?.id === feedback.id
-                              ? 'border-blue-500 bg-blue-50 shadow-md'
-                              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                             }`}
                         >
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex items-center gap-2">
                               <span className={`text-xs font-medium px-2 py-1 rounded-full ${selectedFeedback?.id === feedback.id
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
                                 }`}>
                                 #{feedback.id}
                               </span>
@@ -371,7 +371,12 @@ export default function Home() {
                             className="max-w-full h-auto max-h-80 object-contain border border-gray-200 rounded-lg shadow-sm"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY5NzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuOCueOCr+ODquODvOODs+OCt+ODh+ODg+ODiOOCkuiqreOBv+i+vOOCgeOBvuOBm+OCk+OBp+OBl+OBnw==</text></svg>';
+                              // 無限ループを防ぐためのフラグ
+                              if (target.dataset.errorHandled) return;
+                              target.dataset.errorHandled = 'true';
+
+                              // 正しいフォールバック用SVGを設定
+                              target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+CiAgPGcgZmlsbD0iIzk5YTNhZiI+CiAgICA8c3ZnIHg9IjUwJSIgeT0iNDAlIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTIwLC0yMCkiPgogICAgICA8cGF0aCBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGQ9Im00IDE2IDQuNTg2LTQuNTg2YTIgMiAwIDEgMSAyLjgyOCAwTDE2IDE2bS0yLTJsMS41ODYtMS41ODZhMiAyIDAgMSAxIDIuODI4IDBMMjAgMTRtLTYtNmguMDFNNiAyMGgxMmEyIDIgMCAwIDAgMi0yVjZhMiAyIDAgMCAwLTItMkg2YTIgMiAwIDAgMC0yIDJ2MTJhMiAyIDAgMCAwIDIgMloiLz4KICAgIDwvc3ZnPgogIDwvZz4KICA8dGV4dCB4PSI1MCUiIHk9IjcwJSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjk3MjgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+44K544Kv44Oq44O844Oz44K344On44OD44OI44KS6Kqt44G/6L6844KE44G+44Gb44KT44Gn44GX44GfPC90ZXh0Pgo8L3N2Zz4K';
                             }}
                           />
                         </div>
@@ -457,8 +462,8 @@ export default function Home() {
                           key={log.id}
                           onClick={() => setSelectedErrorLog(log)}
                           className={`group p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedErrorLog?.id === log.id
-                              ? 'border-blue-500 bg-blue-50 shadow-md'
-                              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                             }`}
                         >
                           <div className="flex justify-between items-start mb-3">

@@ -101,7 +101,7 @@ export async function generatePresignedUrl(
     Bucket: process.env.AWS_S3_BUCKET_NAME!,
     Key: key,
     ContentType: fileType,
-    ACL: 'private', // プライベートアクセス
+    ACL: 'public-read', // パブリックリードアクセス許可
   });
 
   try {
