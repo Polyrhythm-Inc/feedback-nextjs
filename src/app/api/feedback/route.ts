@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertFeedback } from '@/lib/database';
+import { notifyFeedbackReceived } from '@/lib/slack';
 
 // CORS対応のヘッダー
 const corsHeaders = {
@@ -42,6 +43,28 @@ export async function POST(request: NextRequest) {
     });
 
     console.log(`フィードバックを受信しました: ID ${feedbackId}`);
+
+    // Slack通知を送信（非同期・エラーが発生してもレスポンスには影響しない）
+    try {
+      const notificationSent = await notifyFeedbackReceived({
+        id: feedbackId.toString(),
+        comment,
+        tabUrl: url,
+        tabTitle: title,
+        timestamp,
+        userAgent,
+        screenshotUrl
+      });
+
+      if (notificationSent) {
+        console.log(`Slack通知送信成功: フィードバックID ${feedbackId}`);
+      } else {
+        console.warn(`Slack通知送信失敗: フィードバックID ${feedbackId}`);
+      }
+    } catch (error) {
+      console.error(`Slack通知送信例外: フィードバックID ${feedbackId}`, error);
+      // Slack通知の失敗はレスポンスに影響させない
+    }
 
     return NextResponse.json({
       success: true,

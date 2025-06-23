@@ -16,6 +16,11 @@
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
     "deploy:setup-s3": "chmod +x deploy-scripts/create-s3-user.sh && ./deploy-scripts/create-s3-user.sh",
+    "deploy:fix-s3": "chmod +x deploy-scripts/fix-s3-permissions.sh && ./deploy-scripts/fix-s3-permissions.sh",
+    "deploy:fix-s3-user": "chmod +x deploy-scripts/fix-s3-user-permissions.sh && ./deploy-scripts/fix-s3-user-permissions.sh",
+    "deploy:configure-s3": "chmod +x deploy-scripts/configure-s3-no-acl.sh && ./deploy-scripts/configure-s3-no-acl.sh",
+    "deploy:configure-s3-limited": "chmod +x deploy-scripts/configure-s3-limited.sh && ./deploy-scripts/configure-s3-limited.sh",
+    "deploy:test-s3": "chmod +x deploy-scripts/test-s3-upload.sh && ./deploy-scripts/test-s3-upload.sh",
     "deploy:set-env": "node deploy-scripts/set-heroku-env.js",
     "deploy:initial": "chmod +x deploy-scripts/initial-deploy.sh && ./deploy-scripts/initial-deploy.sh",
     "deploy:heroku": "git push heroku main"

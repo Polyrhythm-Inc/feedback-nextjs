@@ -4,8 +4,25 @@
 
 set -e
 
-BUCKET_NAME="feedback-app-bucket-1750595506"
-REGION="ap-northeast-1"
+# 環境変数ファイルを読み込み
+if [ -f ".env" ]; then
+    export $(cat .env | xargs)
+elif [ -f "env.production" ]; then
+    export $(cat env.production | xargs)
+else
+    echo "❌ 環境変数ファイル (.env または env.production) が見つかりません"
+    exit 1
+fi
+
+# 環境変数から値を取得
+BUCKET_NAME=${AWS_S3_BUCKET_NAME}
+REGION=${AWS_REGION}
+
+if [ -z "$BUCKET_NAME" ] || [ -z "$REGION" ]; then
+    echo "❌ AWS_S3_BUCKET_NAME または AWS_REGION が設定されていません"
+    echo "環境変数を確認してください"
+    exit 1
+fi
 
 echo "🔧 S3バケット権限の修正を開始します..."
 echo "📦 対象バケット: $BUCKET_NAME"

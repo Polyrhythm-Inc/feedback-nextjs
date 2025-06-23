@@ -76,11 +76,23 @@ export async function generatePresignedUrl(
   fileType: string,
   feedbackId?: number
 ): Promise<PresignedUrlData> {
-  // AWS設定がない場合や開発環境ではローカルストレージを使用
-  if (!hasValidAwsConfig || isDevelopment) {
-    console.log('⚠️ AWS S3設定が不完全か開発環境のため、ローカルストレージを使用します');
+  // AWS設定がない場合はローカルストレージを使用（テスト用に開発環境チェックを一時無効化）
+  if (!hasValidAwsConfig) {
+    console.log('⚠️ AWS S3設定が不完全のため、ローカルストレージを使用します');
+    console.log('設定状況:', {
+      hasValidAwsConfig,
+      isDevelopment,
+      NODE_ENV: process.env.NODE_ENV,
+      AWS_REGION: process.env.AWS_REGION,
+      AWS_S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME
+    });
     return saveToLocalStorage(fileName, fileType, feedbackId);
   }
+
+  console.log('✅ S3モードを使用します', {
+    bucket: process.env.AWS_S3_BUCKET_NAME,
+    region: process.env.AWS_REGION
+  });
 
   // ファイル拡張子を取得
   const fileExtension = fileName.split('.').pop() || 'png';
@@ -101,7 +113,7 @@ export async function generatePresignedUrl(
     Bucket: process.env.AWS_S3_BUCKET_NAME!,
     Key: key,
     ContentType: fileType,
-    ACL: 'public-read', // パブリックリードアクセス許可
+    // ACL設定を削除（新しいS3バケットではACLが無効化されているため）
   });
 
   try {
@@ -113,13 +125,34 @@ export async function generatePresignedUrl(
     // アクセス用のURLを生成
     const fileUrl = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 
+    console.log('✅ プリサインURL生成成功:', { key, bucket: process.env.AWS_S3_BUCKET_NAME });
+
     return {
       uploadUrl,
       key,
       fileUrl
     };
-  } catch (error) {
-    console.error('プリサインURL生成エラー:', error);
+  } catch (error: any) {
+    console.error('❌ プリサインURL生成エラー:', {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      bucket: process.env.AWS_S3_BUCKET_NAME,
+      key,
+      fileType
+    });
+
+    // ACL関連のエラーの場合は、より具体的なエラーメッセージを提供
+    if (error.message?.includes('AccessControlListNotSupported') ||
+      error.message?.includes('bucket does not allow ACLs')) {
+      throw new Error('S3バケットでACLが無効化されています。deploy:configure-s3 コマンドを実行してバケット設定を修正してください。');
+    }
+
+    // その他のS3エラーの場合
+    if (error.code) {
+      throw new Error(`S3エラー (${error.code}): ${error.message}`);
+    }
+
     throw new Error('プリサインURLの生成に失敗しました');
   }
 }

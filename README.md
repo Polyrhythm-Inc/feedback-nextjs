@@ -12,6 +12,7 @@ Chrome Extensionから送信されたフィードバックを保存・管理す�
 - 🗄️ Prisma + MySQLによるデータ永続化
 - 📸 AWS S3によるスクリーンショット保存
 - 🎨 レスポンシブ対応のモダンUI
+- 💬 Slack通知機能（フィードバック受信時の自動通知）
 
 ## 🏗️ アーキテクチャ
 
@@ -52,6 +53,9 @@ AWS_REGION="ap-northeast-1"
 AWS_ACCESS_KEY_ID="your-access-key-id"
 AWS_SECRET_ACCESS_KEY="your-secret-access-key"
 AWS_S3_BUCKET_NAME="your-bucket-name"
+
+# Slack Configuration (オプション)
+SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
 \`\`\`
 
 ### 4. 依存関係のインストール
@@ -154,6 +158,54 @@ bucket-name/
 - **アクセス制御**: プライベート
 - **直接アップロード**: ブラウザから直接S3にアップロード
 
+## 💬 Slack通知機能
+
+### 概要
+
+フィードバックが受信されると、自動的にSlackチャンネルに通知が送信されます。
+
+### 機能詳細
+
+- **リアルタイム通知**: フィードバック受信と同時に通知
+- **リッチメッセージ**: フィードバック内容を整理された形で表示
+- **スクリーンショット表示**: 画像が含まれる場合は通知内に表示
+- **メタデータ情報**: URL、ページタイトル、投稿時刻、ユーザーエージェント
+- **堅牢なエラーハンドリング**: 通知失敗時もフィードバック処理は継続
+
+### 通知形式
+
+Slackには以下の情報が含まれた通知が送信されます：
+
+- 📝 **フィードバックID**: 識別用の一意ID
+- ⏰ **投稿時刻**: 日本時間で表示
+- 🌐 **ページ情報**: タイトルとURL（リンク付き）
+- 💬 **コメント内容**: ユーザーが入力したフィードバック
+- 📸 **スクリーンショット**: 画像がある場合は表示
+- 🖥️ **ユーザーエージェント**: ブラウザ・OS情報
+
+### 設定方法
+
+1. **Slack WebhookURLの取得**
+   - Slackワークスペースの管理画面にアクセス
+   - 「Incoming Webhooks」アプリを追加
+   - 通知先チャンネルを選択してWebhook URLを生成
+
+2. **環境変数の設定**
+   ```env
+   SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+   ```
+
+3. **通知の有効化**
+   - 環境変数が設定されると自動的に有効化
+   - 環境変数が未設定の場合は通知をスキップ（エラーにはならない）
+
+### エラーハンドリング
+
+- ❌ **Webhook URL未設定**: 警告ログを出力してスキップ
+- ❌ **Slack API エラー**: エラーログを記録して処理継続
+- ❌ **ネットワーク例外**: 例外ログを記録して処理継続
+- ✅ **フィードバック処理**: 通知失敗時もフィードバック保存は成功
+
 ## 🎯 使用方法
 
 ### 1. 開発サーバーを起動
@@ -197,7 +249,8 @@ nextjs/
 │   ├── lib/
 │   │   ├── prisma.ts                 # Prismaクライアント
 │   │   ├── database.ts               # データベース操作
-│   │   └── s3.ts                     # S3操作
+│   │   ├── s3.ts                     # S3操作
+│   │   └── slack.ts                  # Slack通知機能
 ├── prisma/
 │   ├── schema.prisma                 # Prismaスキーマ
 │   └── migrations/                   # マイグレーションファイル
@@ -222,12 +275,13 @@ nextjs/
 
 ## ⚙️ 技術スタック
 
-- ⚡ **Next.js 15.3.3** (App Router)
+- ⚡ **Next.js 15.3.3** (App Router)  
 - 📘 **TypeScript**
 - 🎨 **Tailwind CSS**
 - 🗄️ **Prisma ORM** + **MySQL**
 - 📸 **AWS S3** (プリサインURL)
 - 🌐 **CORS対応**
+- 💬 **Slack Webhook API** (通知機能)
 
 ## 🚀 デプロイメント
 
@@ -292,10 +346,33 @@ MySQL Database
    - AWS管理コンソールでアクセスキーを作成
    - `env.production`ファイルに実際の値を設定
 
-3. **初回デプロイ実行**
+3. **S3バケット設定（ACL無効対応）**
+   ```bash
+   npm run deploy:configure-s3
+   ```
+   ※ 新しいS3バケットではACLが無効化されているため、バケットポリシーで設定します
+
+4. **S3アップロードテスト**
+   ```bash
+   npm run deploy:test-s3
+   ```
+
+5. **初回デプロイ実行**
    ```bash
    npm run deploy:initial
    ```
+
+### S3アップロードエラーの解決
+
+`AccessControlListNotSupported` エラーが発生した場合：
+
+```bash
+# 現代的なS3バケット設定（ACL無効）を適用
+npm run deploy:configure-s3
+
+# 設定が正しく適用されたかテスト
+npm run deploy:test-s3
+```
 
 ### GitHub Actionsセットアップ
 
