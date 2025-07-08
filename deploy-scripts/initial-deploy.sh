@@ -43,9 +43,9 @@ fi
 
 # 5. 環境変数設定の確認
 echo "🔧 Checking environment variables..."
-if [ ! -f "env.production" ]; then
-    echo "❌ env.production file not found!"
-    echo "📋 Please create env.production with the following variables:"
+if [ ! -f ".env.production" ]; then
+echo "❌ .env.production file not found!"
+echo "📋 Please create .env.production with the following variables:"
     echo "   AWS_REGION=ap-northeast-1"
     echo "   AWS_ACCESS_KEY_ID=your-access-key-id"
     echo "   AWS_SECRET_ACCESS_KEY=your-secret-access-key"

@@ -7,10 +7,10 @@ set -e
 # 環境変数ファイルを読み込み
 if [ -f ".env" ]; then
     export $(cat .env | xargs)
-elif [ -f "env.production" ]; then
-    export $(cat env.production | xargs)
+elif [ -f ".env.production" ]; then
+export $(cat .env.production | xargs)
 else
-    echo "❌ 環境変数ファイル (.env または env.production) が見つかりません"
+echo "❌ 環境変数ファイル (.env または .env.production) が見つかりません"
     exit 1
 fi
 

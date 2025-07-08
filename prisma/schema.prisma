@@ -14,16 +14,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Feedback {
-  id            Int      @id @default(autoincrement())
-  comment       String   @db.Text
+model ScreenshotData {
+  id            String   @id @default(cuid())
   screenshotUrl String   @map("screenshot_url") @db.VarChar(2048)
+  domTree       String   @map("dom_tree") @db.Text
   tabUrl        String   @map("tab_url") @db.VarChar(2048)
   tabTitle      String   @map("tab_title") @db.VarChar(512)
-  timestamp     BigInt
-  userAgent     String   @map("user_agent") @db.VarChar(512)
+  timestamp     Int
+  pageInfo      Json?    @map("page_info")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // リレーション
+  feedbacks Feedback[]
+
+  @@map("screenshot_data")
+}
+
+model Feedback {
+  id               Int      @id @default(autoincrement())
+  comment          String   @db.Text
+  screenshotDataId String   @map("screenshot_data_id")
+  timestamp        Int
+  userAgent        String?  @map("user_agent") @db.VarChar(512)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // リレーション
+  screenshotData ScreenshotData @relation(fields: [screenshotDataId], references: [id])
 
   @@map("feedbacks")
 }

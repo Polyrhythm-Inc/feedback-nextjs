@@ -17,11 +17,11 @@ echo -e "${BLUE}🔧 S3ユーザー権限の修正を開始します...${NC}"
 if [ -f ".env" ]; then
     export $(cat .env | grep -v '^#' | xargs)
     echo -e "${GREEN}📄 .env ファイルを読み込みました${NC}"
-elif [ -f "env.production" ]; then
-    export $(cat env.production | grep -v '^#' | xargs)
-    echo -e "${GREEN}📄 env.production ファイルを読み込みました${NC}"
+elif [ -f ".env.production" ]; then
+export $(cat .env.production | grep -v '^#' | xargs)
+echo -e "${GREEN}📄 .env.production ファイルを読み込みました${NC}"
 else
-    echo -e "${RED}❌ 環境変数ファイル (.env または env.production) が見つかりません${NC}"
+echo -e "${RED}❌ 環境変数ファイル (.env または .env.production) が見つかりません${NC}"
     exit 1
 fi
 

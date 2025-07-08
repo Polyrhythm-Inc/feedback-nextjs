@@ -18,11 +18,11 @@ echo -e "${BLUE}🔧 S3バケット設定を開始します（限定権限モー
 if [ -f ".env" ]; then
     export $(cat .env | grep -v '^#' | xargs)
     echo -e "${GREEN}📄 .env ファイルを読み込みました${NC}"
-elif [ -f "env.production" ]; then
-    export $(cat env.production | grep -v '^#' | xargs)
-    echo -e "${GREEN}📄 env.production ファイルを読み込みました${NC}"
+elif [ -f ".env.production" ]; then
+export $(cat .env.production | grep -v '^#' | xargs)
+echo -e "${GREEN}📄 .env.production ファイルを読み込みました${NC}"
 else
-    echo -e "${RED}❌ 環境変数ファイル (.env または env.production) が見つかりません${NC}"
+echo -e "${RED}❌ 環境変数ファイル (.env または .env.production) が見つかりません${NC}"
     exit 1
 fi
 
@@ -45,7 +45,7 @@ if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
     echo -e "${GREEN}✅ バケットが見つかりました${NC}"
 else
     echo -e "${RED}❌ バケット '$BUCKET_NAME' が見つかりません${NC}"
-    echo "env.productionファイルでバケット名を確認してください"
+    echo ".env.productionファイルでバケット名を確認してください"
     exit 1
 fi
 

@@ -25,9 +25,10 @@ export interface FeedbackNotificationData {
     comment: string;
     tabUrl: string;
     tabTitle: string;
-    timestamp: string;
+    timestamp: string | number;
     userAgent: string;
     screenshotUrl?: string;
+    screenshotDataId?: string;
 }
 
 /**

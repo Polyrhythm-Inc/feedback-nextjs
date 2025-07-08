@@ -76,23 +76,11 @@ export async function generatePresignedUrl(
   fileType: string,
   feedbackId?: number
 ): Promise<PresignedUrlData> {
-  // AWS設定がない場合はローカルストレージを使用（テスト用に開発環境チェックを一時無効化）
-  if (!hasValidAwsConfig) {
-    console.log('⚠️ AWS S3設定が不完全のため、ローカルストレージを使用します');
-    console.log('設定状況:', {
-      hasValidAwsConfig,
-      isDevelopment,
-      NODE_ENV: process.env.NODE_ENV,
-      AWS_REGION: process.env.AWS_REGION,
-      AWS_S3_BUCKET_NAME: process.env.AWS_S3_BUCKET_NAME
-    });
+  // AWS設定がない場合や開発環境ではローカルストレージを使用
+  if (!hasValidAwsConfig || isDevelopment) {
+    console.log('⚠️ AWS S3設定が不完全か開発環境のため、ローカルストレージを使用します');
     return saveToLocalStorage(fileName, fileType, feedbackId);
   }
-
-  console.log('✅ S3モードを使用します', {
-    bucket: process.env.AWS_S3_BUCKET_NAME,
-    region: process.env.AWS_REGION
-  });
 
   // ファイル拡張子を取得
   const fileExtension = fileName.split('.').pop() || 'png';
@@ -162,4 +150,89 @@ export function getFileUrlFromKey(key: string): string {
     return `http://localhost:3300/uploads/${key}`;
   }
   return `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+}
+
+// Base64データURIを変換してローカルファイルに保存する関数
+function dataURItoBuffer(dataURI: string): Buffer {
+  const parts = dataURI.split(',');
+  if (parts.length !== 2) {
+    throw new Error('Invalid data URI format');
+  }
+  return Buffer.from(parts[1], 'base64');
+}
+
+// Base64データを直接S3またはローカルにアップロードする関数
+export async function uploadToS3(
+  dataURI: string,
+  fileName: string,
+  contentType: string
+): Promise<string> {
+  // データURIからBufferに変換
+  const buffer = dataURItoBuffer(dataURI);
+
+  // 現在の日時でキーを生成
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const timestamp = Date.now();
+
+  const key = `feedbacks/${year}/${month}/${day}/${fileName}`;
+
+  // AWS設定がない場合や開発環境ではローカルファイルシステムを使用
+  if (!hasValidAwsConfig || isDevelopment) {
+    console.log('🔄 開発環境: ローカルファイルシステムにアップロードします');
+
+    // アップロードディレクトリを作成
+    const uploadDir = join(process.cwd(), 'public', 'uploads', 'feedbacks', year.toString(), month, day);
+    await mkdir(uploadDir, { recursive: true });
+
+    // ファイルを保存
+    const filePath = join(uploadDir, fileName);
+    await writeFile(filePath, buffer);
+
+    console.log('✅ ローカルファイル保存成功:', filePath);
+
+    // アクセス用のURLを返す
+    return `http://localhost:3300/uploads/feedbacks/${year}/${month}/${day}/${fileName}`;
+  }
+
+  // S3にアップロード
+  const command = new PutObjectCommand({
+    Bucket: process.env.AWS_S3_BUCKET_NAME!,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
+    // ACL設定を削除（新しいS3バケットではACLが無効化されているため）
+  });
+
+  try {
+    await s3Client!.send(command);
+    console.log('✅ S3アップロード成功:', { key, bucket: process.env.AWS_S3_BUCKET_NAME });
+
+    // アクセス用のURLを返す
+    return `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+  } catch (error: any) {
+    console.error('❌ S3アップロードエラー:', {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      bucket: process.env.AWS_S3_BUCKET_NAME,
+      key,
+      contentType
+    });
+
+    // ACL関連のエラーの場合は、より具体的なエラーメッセージを提供
+    if (error.message?.includes('AccessControlListNotSupported') ||
+      error.message?.includes('bucket does not allow ACLs')) {
+      throw new Error('S3バケットでACLが無効化されています。deploy:configure-s3 コマンドを実行してバケット設定を修正してください。');
+    }
+
+    // その他のS3エラーの場合
+    if (error.code) {
+      throw new Error(`S3エラー (${error.code}): ${error.message}`);
+    }
+
+    throw new Error('S3アップロードに失敗しました');
+  }
 } 

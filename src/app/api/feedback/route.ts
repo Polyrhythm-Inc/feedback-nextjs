@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { insertFeedback } from '@/lib/database';
+import { insertFeedbackNew, getFeedbackById } from '@/lib/database';
 import { notifyFeedbackReceived } from '@/lib/slack';
+import { findProjectByUrl } from '@/lib/projects';
+import { parseGitHubRepository, createGitHubIssue, createIssueDataFromFeedback } from '@/lib/github';
 
 // CORS対応のヘッダー
 const corsHeaders = {
@@ -14,46 +16,45 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // リクエストデータの検証
-    const { comment, screenshotUrl, metadata } = body;
+    const { comment, uploadedDataId, timestamp } = body;
 
-    if (!comment || !screenshotUrl || !metadata) {
+    if (!comment) {
       return NextResponse.json(
-        { error: '必須項目が不足しています (comment, screenshotUrl, metadata)' },
+        { error: 'コメントが必須です' },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    const { url, title, timestamp, userAgent } = metadata;
-
-    if (!url || !title || !timestamp || !userAgent) {
+    if (!uploadedDataId) {
       return NextResponse.json(
-        { error: 'メタデータが不完全です (url, title, timestamp, userAgent)' },
+        { error: 'uploadedDataId が必須です。新しいAPIフォーマットを使用してください。' },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // データベースに保存
-    const feedbackId = await insertFeedback({
+    // 新しい形式のみをサポート
+    console.log('フィードバック受信:', { uploadedDataId, comment });
+
+    const feedbackId = await insertFeedbackNew({
       comment,
-      screenshotUrl,
-      tabUrl: url,
-      tabTitle: title,
-      timestamp,
-      userAgent
+      screenshotDataId: uploadedDataId,
+      timestamp: timestamp || Date.now(),
+      userAgent: request.headers.get('user-agent') || undefined
     });
 
-    console.log(`フィードバックを受信しました: ID ${feedbackId}`);
+    console.log(`フィードバックを受信しました: ID ${feedbackId}, スクリーンショットデータID: ${uploadedDataId}`);
 
-    // Slack通知を送信（非同期・エラーが発生してもレスポンスには影響しない）
+    // Slack通知
     try {
       const notificationSent = await notifyFeedbackReceived({
         id: feedbackId.toString(),
         comment,
-        tabUrl: url,
-        tabTitle: title,
-        timestamp,
-        userAgent,
-        screenshotUrl
+        tabUrl: '(スクリーンショットデータを参照)',
+        tabTitle: '(スクリーンショットデータを参照)',
+        timestamp: timestamp || Date.now(), // Slack通知では元のミリ秒のまま使用
+        userAgent: request.headers.get('user-agent') || 'Unknown',
+        screenshotUrl: '(スクリーンショットデータを参照)',
+        screenshotDataId: uploadedDataId
       });
 
       if (notificationSent) {
@@ -64,6 +65,47 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error(`Slack通知送信例外: フィードバックID ${feedbackId}`, error);
       // Slack通知の失敗はレスポンスに影響させない
+    }
+
+    // GitHub issue作成
+    try {
+      // フィードバックの詳細データを取得（スクリーンショットデータを含む）
+      const feedbackData = await getFeedbackById(feedbackId);
+      
+      if (feedbackData && feedbackData.screenshotData) {
+        console.log(`GitHub issue作成を開始: フィードバックID ${feedbackId}, URL: ${feedbackData.screenshotData.tabUrl}`);
+        
+        // URLからプロジェクトを検索
+        const project = await findProjectByUrl(feedbackData.screenshotData.tabUrl);
+        
+        if (project && project.githubRepository) {
+          console.log(`プロジェクトを発見: ${project.name} (${project.displayName}) - ${project.githubRepository}`);
+          
+          // GitHubリポジトリ情報を解析
+          const repository = parseGitHubRepository(project.githubRepository);
+          
+          if (repository) {
+            // GitHub issue作成
+            const issueData = createIssueDataFromFeedback(feedbackData);
+            const result = await createGitHubIssue(repository, issueData);
+            
+            if (result.success) {
+              console.log(`GitHub issue作成成功: フィードバックID ${feedbackId}, Issue URL: ${result.issueUrl}`);
+            } else {
+              console.warn(`GitHub issue作成失敗: フィードバックID ${feedbackId}, Error: ${result.error}`);
+            }
+          } else {
+            console.warn(`GitHubリポジトリURL解析失敗: ${project.githubRepository}`);
+          }
+        } else {
+          console.log(`プロジェクトが見つからないか、GitHubリポジトリが設定されていません: URL ${feedbackData.screenshotData.tabUrl}`);
+        }
+      } else {
+        console.warn(`フィードバックデータまたはスクリーンショットデータが見つかりません: ID ${feedbackId}`);
+      }
+    } catch (error) {
+      console.error(`GitHub issue作成例外: フィードバックID ${feedbackId}`, error);
+      // GitHub issue作成の失敗はレスポンスに影響させない
     }
 
     return NextResponse.json({

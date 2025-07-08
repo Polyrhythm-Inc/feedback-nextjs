@@ -2,16 +2,27 @@
 
 import { useEffect, useState } from 'react';
 
+interface ScreenshotData {
+  id: string;
+  screenshotUrl: string;
+  domTree: string;
+  tabUrl: string;
+  tabTitle: string;
+  timestamp: number;
+  pageInfo: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface FeedbackRecord {
   id: number;
   comment: string;
-  screenshotUrl: string; // S3 URL
-  tabUrl: string;
-  tabTitle: string;
-  timestamp: string; // BigIntから文字列に変換済み
+  screenshotDataId: string;
+  timestamp: number;
   userAgent: string;
   createdAt: string;
   updatedAt: string;
+  screenshotData: ScreenshotData;
 }
 
 interface ErrorLog {
@@ -91,7 +102,9 @@ export default function Home() {
   }, []);
 
   const formatDate = (timestamp: string | number) => {
-    const date = new Date(typeof timestamp === 'string' ? parseInt(timestamp) : timestamp);
+    // timestampは秒単位で保存されているので、ミリ秒に変換
+    const timestampMs = (typeof timestamp === 'string' ? parseInt(timestamp) : timestamp) * 1000;
+    const date = new Date(timestampMs);
     return date.toLocaleString('ja-JP', {
       year: 'numeric',
       month: '2-digit',
@@ -289,7 +302,7 @@ export default function Home() {
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
                             </svg>
-                            <span className="truncate">{feedback.tabTitle}</span>
+                            <span className="truncate">{feedback.screenshotData.tabTitle}</span>
                           </div>
                         </div>
                       ))}
@@ -340,17 +353,17 @@ export default function Home() {
                         <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                           <div>
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">タイトル</label>
-                            <p className="text-sm text-gray-800 mt-1">{selectedFeedback.tabTitle}</p>
+                            <p className="text-sm text-gray-800 mt-1">{selectedFeedback.screenshotData.tabTitle}</p>
                           </div>
                           <div>
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">URL</label>
                             <a
-                              href={selectedFeedback.tabUrl}
+                              href={selectedFeedback.screenshotData.tabUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-sm text-blue-600 hover:text-blue-800 underline break-all mt-1 block"
                             >
-                              {selectedFeedback.tabUrl}
+                              {selectedFeedback.screenshotData.tabUrl}
                             </a>
                           </div>
                         </div>
@@ -366,7 +379,7 @@ export default function Home() {
                         </h3>
                         <div className="bg-gray-50 rounded-lg p-4">
                           <img
-                            src={selectedFeedback.screenshotUrl}
+                            src={selectedFeedback.screenshotData.screenshotUrl}
                             alt="スクリーンショット"
                             className="max-w-full h-auto max-h-80 object-contain border border-gray-200 rounded-lg shadow-sm"
                             onError={(e) => {
@@ -382,6 +395,27 @@ export default function Home() {
                         </div>
                       </div>
 
+                      {/* DOMツリー */}
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                          DOM構造
+                        </h3>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <textarea
+                            value={selectedFeedback.screenshotData.domTree}
+                            readOnly
+                            className="w-full h-64 text-xs font-mono bg-white border border-gray-200 rounded p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="DOMツリーの情報"
+                          />
+                          <div className="mt-2 text-xs text-gray-500">
+                            サイズ: {selectedFeedback.screenshotData.domTree.length.toLocaleString()} 文字
+                          </div>
+                        </div>
+                      </div>
+
                       {/* メタデータ */}
                       <div>
                         <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
@@ -393,21 +427,37 @@ export default function Home() {
                         <div className="bg-gray-50 rounded-lg p-4">
                           <dl className="grid grid-cols-1 gap-3 text-sm">
                             <div>
-                              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">送信日時</dt>
+                              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">フィードバック送信日時</dt>
                               <dd className="text-gray-800 mt-1">{formatDate(selectedFeedback.timestamp)}</dd>
                             </div>
                             <div>
-                              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">作成日時</dt>
+                              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">スクリーンショット撮影日時</dt>
+                              <dd className="text-gray-800 mt-1">{formatDate(selectedFeedback.screenshotData.timestamp)}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">フィードバック作成日時</dt>
                               <dd className="text-gray-800 mt-1">{formatISODate(selectedFeedback.createdAt)}</dd>
                             </div>
                             <div>
-                              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">更新日時</dt>
-                              <dd className="text-gray-800 mt-1">{formatISODate(selectedFeedback.updatedAt)}</dd>
+                              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">スクリーンショットデータID</dt>
+                              <dd className="text-gray-800 mt-1 text-xs font-mono">{selectedFeedback.screenshotDataId}</dd>
                             </div>
-                            <div>
-                              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">User Agent</dt>
-                              <dd className="text-gray-800 mt-1 text-xs font-mono break-all">{selectedFeedback.userAgent}</dd>
-                            </div>
+                            {selectedFeedback.userAgent && (
+                              <div>
+                                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">User Agent</dt>
+                                <dd className="text-gray-800 mt-1 text-xs font-mono break-all">{selectedFeedback.userAgent}</dd>
+                              </div>
+                            )}
+                            {selectedFeedback.screenshotData.pageInfo && (
+                              <div>
+                                <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">ページ情報 (JSON)</dt>
+                                <dd className="text-gray-800 mt-1">
+                                  <pre className="text-xs font-mono bg-white border rounded p-2 overflow-x-auto">
+                                    {JSON.stringify(selectedFeedback.screenshotData.pageInfo, null, 2)}
+                                  </pre>
+                                </dd>
+                              </div>
+                            )}
                           </dl>
                         </div>
                       </div>

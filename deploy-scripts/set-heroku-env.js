@@ -4,9 +4,9 @@ const fs = require('fs');
 const path = require('path');
 
 // .env.productionファイルを読み込む
-const envPath = path.resolve(__dirname, '../env.production');
+const envPath = path.resolve(__dirname, '../.env.production');
 if (!fs.existsSync(envPath)) {
-    console.error('❌ env.production file not found');
+    console.error('❌ .env.production file not found');
     console.log('📁 Expected location:', envPath);
     process.exit(1);
 }
