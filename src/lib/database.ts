@@ -5,7 +5,7 @@ export interface FeedbackRecord {
   comment: string;
   screenshotDataId: string;
   timestamp: number;
-  userAgent: string;
+  userAgent: string | null;
   createdAt: Date;
   updatedAt: Date;
   screenshotData: ScreenshotDataRecord;

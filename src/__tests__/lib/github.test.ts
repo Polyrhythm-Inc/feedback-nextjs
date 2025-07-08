@@ -78,7 +78,7 @@ describe('GitHub Integration', () => {
                 screenshotUrl: 'https://example.com/screenshot.png',
                 timestamp: 1640995200, // 2022-01-01 00:00:00 UTC
             },
-            userAgent: 'Mozilla/5.0 (Test Browser)',
+            userAgent: 'Mozilla/5.0 (Test Browser)' as string | null,
             timestamp: 1640995200,
         };
 
@@ -98,7 +98,7 @@ describe('GitHub Integration', () => {
         it('should handle missing userAgent', () => {
             const feedbackWithoutUserAgent = {
                 ...mockFeedback,
-                userAgent: undefined,
+                userAgent: null,
             };
 
             const result = createIssueDataFromFeedback(feedbackWithoutUserAgent);

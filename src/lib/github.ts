@@ -95,7 +95,7 @@ export function createIssueDataFromFeedback(feedback: {
         screenshotUrl: string;
         timestamp: number;
     };
-    userAgent?: string;
+    userAgent: string | null;
     timestamp: number;
 }): GitHubIssueData {
     const date = new Date(feedback.timestamp * 1000);
