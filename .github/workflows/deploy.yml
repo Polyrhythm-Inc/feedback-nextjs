@@ -2,9 +2,9 @@ name: Deploy to Heroku
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
     types: [ closed ]
 
 jobs:
@@ -34,22 +34,27 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: 'feedback-nextjs/package-lock.json'
 
     - name: Install dependencies
       run: npm ci
+      working-directory: feedback-nextjs
 
     - name: Generate Prisma Client
       run: npx prisma generate
+      working-directory: feedback-nextjs
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/feedback_test
 
     - name: Run database migrations
       run: npx prisma migrate deploy
+      working-directory: feedback-nextjs
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/feedback_test
 
     - name: Run tests
       run: npm test
+      working-directory: feedback-nextjs
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/feedback_test
         AWS_REGION: ap-northeast-1
@@ -59,6 +64,7 @@ jobs:
 
     - name: Run linting
       run: npm run lint
+      working-directory: feedback-nextjs
 
   deploy:
     needs: test
@@ -76,12 +82,15 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+        cache-dependency-path: 'feedback-nextjs/package-lock.json'
 
     - name: Install dependencies
       run: npm ci
+      working-directory: feedback-nextjs
 
     - name: Build application
       run: npm run build
+      working-directory: feedback-nextjs
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -94,15 +103,16 @@ jobs:
       uses: akhileshns/heroku-deploy@v3.13.15
       with:
         heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-        heroku_app_name: "feedback"
+        heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
         heroku_email: ${{ secrets.HEROKU_EMAIL }}
         buildpack: "heroku/nodejs"
+        appdir: "feedback-nextjs"
 
     - name: Run database migrations on Heroku
       run: |
         echo "Waiting for deployment to complete..."
         sleep 30
-        curl -X POST https://api.heroku.com/apps/feedback/dynos \
+        curl -X POST https://api.heroku.com/apps/${{ secrets.HEROKU_APP_NAME }}/dynos \
           -H "Authorization: Bearer ${{ secrets.HEROKU_API_KEY }}" \
           -H "Accept: application/vnd.heroku+json; version=3" \
           -H "Content-Type: application/json" \
@@ -112,14 +122,14 @@ jobs:
       run: |
         echo "Performing health check..."
         sleep 10
-        curl -f https://feedback.herokuapp.com/ || exit 1
+        curl -f https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/ || exit 1
 
     - name: Notify deployment status
       if: always()
       run: |
         if [ "${{ job.status }}" == "success" ]; then
           echo "✅ Deployment successful!"
-          echo "🌐 App URL: https://feedback.herokuapp.com"
+          echo "🌐 App URL: https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com"
         else
           echo "❌ Deployment failed!"
         fi 

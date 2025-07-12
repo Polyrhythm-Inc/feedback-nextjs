@@ -335,7 +335,35 @@ MySQL Database
 
 ## 🚀 本番デプロイ手順
 
-### 初回デプロイ
+### 推奨：GitHub Actions による自動デプロイ
+
+**📋 詳細な手順は [`GITHUB_ACTIONS_SETUP.md`](./GITHUB_ACTIONS_SETUP.md) を参照してください。**
+
+1. **GitHubリポジトリの作成**
+   ```bash
+   git remote add origin https://github.com/your-username/your-repo.git
+   git push -u origin main
+   ```
+
+2. **GitHub Secretsの設定**
+   リポジトリの Settings > Secrets and variables > Actions で以下を設定:
+   - `HEROKU_API_KEY`: Heroku API キー
+   - `HEROKU_EMAIL`: Herokuアカウントのメールアドレス
+   - `HEROKU_APP_NAME`: Herokuアプリ名
+   - `DATABASE_URL`: HerokuのPostgreSQL URL
+   - `AWS_REGION`: ap-northeast-1
+   - `AWS_ACCESS_KEY_ID`: AWS アクセスキー
+   - `AWS_SECRET_ACCESS_KEY`: AWS シークレットキー
+   - `AWS_S3_BUCKET_NAME`: S3バケット名
+
+3. **自動デプロイ**
+   - `main` ブランチへのプッシュで自動デプロイ
+   - プルリクエストのマージで自動デプロイ
+   - テスト実行 → ビルド → デプロイ → ヘルスチェックの自動実行
+
+### 手動デプロイ（従来の方法）
+
+#### 初回デプロイ
 
 1. **AWS S3セットアップ**
    ```bash
@@ -362,7 +390,7 @@ MySQL Database
    npm run deploy:initial
    ```
 
-### S3アップロードエラーの解決
+#### S3アップロードエラーの解決
 
 `AccessControlListNotSupported` エラーが発生した場合：
 
@@ -374,29 +402,7 @@ npm run deploy:configure-s3
 npm run deploy:test-s3
 ```
 
-### GitHub Actionsセットアップ
-
-1. **GitHubリポジトリの作成**
-   ```bash
-   git remote add origin https://github.com/your-username/your-repo.git
-   git push -u origin main
-   ```
-
-2. **GitHub Secretsの設定**
-   リポジトリの Settings > Secrets and variables > Actions で以下を設定:
-   - `HEROKU_API_KEY`: Heroku API キー
-   - `HEROKU_EMAIL`: Herokuアカウントのメールアドレス
-   - `DATABASE_URL`: HerokuのPostgreSQL URL
-   - `AWS_REGION`: ap-northeast-1
-   - `AWS_ACCESS_KEY_ID`: AWS アクセスキー
-   - `AWS_SECRET_ACCESS_KEY`: AWS シークレットキー
-   - `AWS_S3_BUCKET_NAME`: feedback-app-bucket
-
-3. **継続的デプロイ**
-   - mainブランチへのpushで自動デプロイ
-   - プルリクエストのマージで自動デプロイ
-
-### 手動デプロイコマンド
+#### 手動デプロイコマンド
 
 ```bash
 # 環境変数設定
