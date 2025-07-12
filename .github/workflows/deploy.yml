@@ -6,6 +6,17 @@ on:
   pull_request:
     branches: [ main, master ]
     types: [ closed ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+          - development
 
 jobs:
   test:
@@ -132,7 +143,7 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{
             "applicationName": "feedback-suite.polyrhythm.tokyo",
-            "environment": "production",
+            "environment": "${{ github.event.inputs.environment || 'production' }}",
             "version": "${{ github.ref_name }}",
             "commitHash": "${{ github.sha }}",
             "branch": "${{ github.ref_name }}",
@@ -159,7 +170,7 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{
             "applicationName": "feedback-suite.polyrhythm.tokyo",
-            "environment": "production",
+            "environment": "${{ github.event.inputs.environment || 'production' }}",
             "version": "${{ github.ref_name }}",
             "commitHash": "${{ github.sha }}",
             "branch": "${{ github.ref_name }}",
