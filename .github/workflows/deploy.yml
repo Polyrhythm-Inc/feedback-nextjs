@@ -34,7 +34,6 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: 'feedback-nextjs/package-lock.json'
 
     - name: Install dependencies
       run: npm ci
