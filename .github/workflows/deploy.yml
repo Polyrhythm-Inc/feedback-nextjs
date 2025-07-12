@@ -124,6 +124,59 @@ jobs:
         sleep 10
         curl -f https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/ || exit 1
 
+    - name: Record deployment success
+      if: success()
+      run: |
+        curl -X POST "https://auth-suite.polyrhythm.tokyo/api/external/deployments" \
+          -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "applicationName": "feedback-suite.polyrhythm.tokyo",
+            "environment": "production",
+            "version": "${{ github.ref_name }}",
+            "commitHash": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "tag": "${{ github.ref_name }}",
+            "deployedBy": "github-actions",
+            "status": "SUCCESS",
+            "workflowRunId": "${{ github.run_id }}",
+            "jobId": "${{ github.job }}",
+            "notes": "Heroku deployment via GitHub Actions",
+            "metadata": {
+              "repository": "${{ github.repository }}",
+              "actor": "${{ github.actor }}",
+              "platform": "heroku",
+              "appName": "${{ secrets.HEROKU_APP_NAME }}",
+              "deploymentUrl": "https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com"
+            }
+          }'
+
+    - name: Record deployment failure
+      if: failure()
+      run: |
+        curl -X POST "https://auth-suite.polyrhythm.tokyo/api/external/deployments" \
+          -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "applicationName": "feedback-suite.polyrhythm.tokyo",
+            "environment": "production",
+            "version": "${{ github.ref_name }}",
+            "commitHash": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "tag": "${{ github.ref_name }}",
+            "deployedBy": "github-actions",
+            "status": "FAILED",
+            "workflowRunId": "${{ github.run_id }}",
+            "jobId": "${{ github.job }}",
+            "notes": "Heroku deployment failed via GitHub Actions",
+            "metadata": {
+              "repository": "${{ github.repository }}",
+              "actor": "${{ github.actor }}",
+              "platform": "heroku",
+              "appName": "${{ secrets.HEROKU_APP_NAME }}"
+            }
+          }'
+
     - name: Notify deployment status
       if: always()
       run: |
