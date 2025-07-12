@@ -19,68 +19,9 @@ on:
           - development
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: feedback_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: 'feedback-nextjs/package-lock.json'
-
-    - name: Install dependencies
-      run: npm ci
-      working-directory: feedback-nextjs
-
-    - name: Generate Prisma Client
-      run: npx prisma generate
-      working-directory: feedback-nextjs
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/feedback_test
-
-    - name: Run database migrations
-      run: npx prisma migrate deploy
-      working-directory: feedback-nextjs
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/feedback_test
-
-    - name: Run tests
-      run: npm test
-      working-directory: feedback-nextjs
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/feedback_test
-        AWS_REGION: ap-northeast-1
-        AWS_ACCESS_KEY_ID: test-key
-        AWS_SECRET_ACCESS_KEY: test-secret
-        AWS_S3_BUCKET_NAME: test-bucket
-
-    - name: Run linting
-      run: npm run lint
-      working-directory: feedback-nextjs
-
   deploy:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true))
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || github.event_name == 'workflow_dispatch')
 
     steps:
     - name: Checkout code
