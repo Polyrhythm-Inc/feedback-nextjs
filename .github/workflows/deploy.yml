@@ -54,13 +54,25 @@ jobs:
         echo "/usr/local/bin" >> $GITHUB_PATH
 
     - name: Deploy to Heroku
-      uses: akhileshns/heroku-deploy@v3.13.15
-      with:
-        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-        heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-        heroku_email: ${{ secrets.HEROKU_EMAIL }}
-        buildpack: "heroku/nodejs"
-        appdir: "."
+      run: |
+        echo "machine api.heroku.com" >> ~/.netrc
+        echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
+        echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
+        echo "machine git.heroku.com" >> ~/.netrc
+        echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
+        echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
+        chmod 600 ~/.netrc
+        
+        heroku git:remote --app ${{ secrets.HEROKU_APP_NAME }}
+        
+        # Set buildpack
+        heroku buildpacks:set heroku/nodejs --app ${{ secrets.HEROKU_APP_NAME }}
+        
+        git config --global user.email "${{ secrets.HEROKU_EMAIL }}"
+        git config --global user.name "GitHub Actions"
+        
+        # Force push to heroku
+        git push heroku HEAD:main --force
 
     - name: Run database migrations on Heroku
       run: |
