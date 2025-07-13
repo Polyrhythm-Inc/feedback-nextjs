@@ -78,11 +78,14 @@ jobs:
       run: |
         echo "Waiting for deployment to complete..."
         sleep 30
-        curl -X POST https://api.heroku.com/apps/${{ secrets.HEROKU_APP_NAME }}/dynos \
-          -H "Authorization: Bearer ${{ secrets.HEROKU_API_KEY }}" \
-          -H "Accept: application/vnd.heroku+json; version=3" \
-          -H "Content-Type: application/json" \
-          -d '{"command": "npx prisma migrate deploy", "attach": false}'
+        
+        # Try to run migrations
+        echo "Running database migrations..."
+        heroku run "npx prisma migrate deploy" --app ${{ secrets.HEROKU_APP_NAME }} || {
+          echo "Migration failed, attempting to resolve..."
+          heroku run "npx prisma migrate resolve --rolled-back" --app ${{ secrets.HEROKU_APP_NAME }} || true
+          heroku run "npx prisma migrate deploy" --app ${{ secrets.HEROKU_APP_NAME }}
+        }
 
     - name: Health check
       run: |
