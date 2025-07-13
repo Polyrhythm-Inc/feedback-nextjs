@@ -90,6 +90,8 @@ jobs:
     - name: Health check
       run: |
         echo "Performing health check..."
+        echo "App Name: ${{ secrets.HEROKU_APP_NAME }}"
+        echo "Target URL: https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/"
         sleep 10
         curl -f https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/ || exit 1
 
@@ -149,9 +151,12 @@ jobs:
     - name: Notify deployment status
       if: always()
       run: |
+        echo "App Name: ${{ secrets.HEROKU_APP_NAME }}"
+        echo "Job Status: ${{ job.status }}"
         if [ "${{ job.status }}" == "success" ]; then
           echo "✅ Deployment successful!"
           echo "🌐 App URL: https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com"
         else
           echo "❌ Deployment failed!"
+          echo "🔗 Check logs: https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com"
         fi 
