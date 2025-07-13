@@ -89,11 +89,15 @@ jobs:
 
     - name: Health check
       run: |
+        # Set app variables
+        APP_NAME="feedback"
+        WEB_URL="https://feedback-a9cba1104830.herokuapp.com/"
+        
         echo "Performing health check..."
-        echo "App Name: ${{ secrets.HEROKU_APP_NAME }}"
-        echo "Target URL: https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/"
+        echo "App Name: $APP_NAME"
+        echo "Target URL: $WEB_URL"
         sleep 10
-        curl -f https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/ || exit 1
+        curl -f $WEB_URL || exit 1
 
     - name: Record deployment success
       if: success()
@@ -118,7 +122,7 @@ jobs:
               "actor": "${{ github.actor }}",
               "platform": "heroku",
               "appName": "${{ secrets.HEROKU_APP_NAME }}",
-              "deploymentUrl": "https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com"
+              "deploymentUrl": "https://feedback-a9cba1104830.herokuapp.com"
             }
           }'
 
@@ -151,12 +155,16 @@ jobs:
     - name: Notify deployment status
       if: always()
       run: |
-        echo "App Name: ${{ secrets.HEROKU_APP_NAME }}"
+        # Set app variables
+        APP_NAME="feedback"
+        WEB_URL="https://feedback-a9cba1104830.herokuapp.com/"
+        
+        echo "App Name: $APP_NAME"
         echo "Job Status: ${{ job.status }}"
         if [ "${{ job.status }}" == "success" ]; then
           echo "✅ Deployment successful!"
-          echo "🌐 App URL: https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com"
+          echo "🌐 App URL: $WEB_URL"
         else
           echo "❌ Deployment failed!"
-          echo "🔗 Check logs: https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com"
+          echo "🔗 Check logs: $WEB_URL"
         fi 
