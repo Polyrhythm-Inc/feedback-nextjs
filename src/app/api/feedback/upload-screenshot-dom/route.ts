@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
 
         const { url, title } = pageInfo;
 
-        if (!url || !title) {
+        if (!url) {
             return NextResponse.json(
-                { error: 'ページ情報が不完全です (url, title)' },
+                { error: 'ページ情報が不完全です (url)' },
                 { status: 400, headers: corsHeaders }
             );
         }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
             screenshotUrl,
             domTree,
             tabUrl: url,
-            tabTitle: title,
+            tabTitle: title || '',  // タイトルが空の場合は空文字列を使用
             timestamp,
             pageInfo
         });
