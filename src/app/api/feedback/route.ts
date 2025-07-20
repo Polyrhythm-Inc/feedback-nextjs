@@ -3,6 +3,7 @@ import { insertFeedbackNew, getFeedbackById } from '@/lib/database';
 import { notifyFeedbackReceived } from '@/lib/slack';
 import { findProjectByUrl } from '@/lib/projects';
 import { parseGitHubRepository, createGitHubIssue, createIssueDataFromFeedback } from '@/lib/github';
+import { createTaskFromFeedback, getTaskServerApiKey } from '@/lib/task-server';
 
 // CORS対応のヘッダー
 const corsHeaders = {
@@ -106,6 +107,35 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error(`GitHub issue作成例外: フィードバックID ${feedbackId}`, error);
       // GitHub issue作成の失敗はレスポンスに影響させない
+    }
+
+    // タスク管理サーバへのタスク作成
+    try {
+      const apiKey = getTaskServerApiKey();
+      
+      if (apiKey) {
+        // フィードバックデータが取得できていない場合は再取得
+        const feedbackData = await getFeedbackById(feedbackId);
+        
+        if (feedbackData && feedbackData.screenshotData) {
+          console.log(`タスク管理サーバへのタスク作成を開始: フィードバックID ${feedbackId}`);
+          
+          const taskResult = await createTaskFromFeedback(feedbackData, apiKey);
+          
+          if (taskResult.success) {
+            console.log(`タスク作成成功: フィードバックID ${feedbackId}, タスクID: ${taskResult.taskId}, URL: ${taskResult.taskUrl}`);
+          } else {
+            console.warn(`タスク作成失敗: フィードバックID ${feedbackId}, Error: ${taskResult.error}`);
+          }
+        } else {
+          console.warn(`タスク作成スキップ: フィードバックデータが見つかりません: ID ${feedbackId}`);
+        }
+      } else {
+        console.log('タスク管理サーバのAPIキーが設定されていないため、タスク作成をスキップします');
+      }
+    } catch (error) {
+      console.error(`タスク作成例外: フィードバックID ${feedbackId}`, error);
+      // タスク作成の失敗はレスポンスに影響させない
     }
 
     return NextResponse.json({
