@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -euo pipefail
 # ポート番号を生成
 PORT=$(~/Dropbox/project/scripts/generate-port.sh)
 
