@@ -1,13 +1,7 @@
 #!/bin/bash
 
 # ポート番号を生成
-if [ -f ~/Dropbox/project/scripts/generate-port.sh ]; then
-    # 既存のスクリプトを使用
-    PORT=$(~/Dropbox/project/scripts/generate-port.sh)
-else
-    # フォールバック：スクリプトがない場合はローカルのスクリプトを使用
-    PORT=$(./scripts/generate-port.sh)
-fi
+PORT=$(~/Dropbox/project/scripts/generate-port.sh)
 
 # 環境変数を設定（.env.localファイルが存在する場合）
 if [ -f .env.local ]; then
