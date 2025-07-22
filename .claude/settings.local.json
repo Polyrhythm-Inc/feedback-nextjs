@@ -1,0 +1,103 @@
+{
+  "env": {
+    "MCP_TIMEOUT": "30000",
+    "MCP_TOOL_TIMEOUT": "120000",
+    "BASH_DEFAULT_TIMEOUT_MS": "60000",
+    "BASH_MAX_TIMEOUT_MS": "300000"
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(chmod:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm run build:main:*)",
+      "Bash(npm run build:preload:*)",
+      "Bash(npm run build:renderer:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run start:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run test:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm run rebuild:*)",
+      "Bash(npm run dev:all:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(npx prisma init:*)",
+      "Bash(touch:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma db pull:*)",
+      "Bash(cp:*)",
+      "Bash(npx prisma:*)",
+      "Bash(sqlite3:*)",
+      "Bash(vibe_kanban:*)",
+      "Write",
+      "Bash(echo:*)",
+      "Bash(export:*)",
+      "Bash(.claude/hooks/slack-notify.sh:*)",
+      "Bash(.claude/hooks/slack-notify-debug.sh:*)",
+      "Bash(.claude/hooks/slack-notify-prompt.sh:*)",
+      "Bash(.claude/hooks/slack-notify-tool.sh:*)",
+      "Bash(.claude/hooks/slack-notify-stop.sh:*)",
+      "Bash(.claude/hooks/slack-notify-notification.sh:*)",
+      "Bash(test:*)",
+      "Bash(git remote get-url:*)",
+      "Bash(./scripts/generate-port.sh:*)",
+      "Bash(heroku apps:info:*)",
+      "Bash(heroku domains:add:*)",
+      "Bash(heroku domains:*)",
+      "Bash(aws route53 list-hosted-zones:*)",
+      "Bash(aws route53 change-resource-record-sets:*)",
+      "Bash(aws route53 get-change:*)",
+      "Bash(dig:*)",
+      "Bash(curl:*)",
+      "Bash(nslookup:*)",
+      "Bash(heroku certs:auto:enable:*)",
+      "Bash(heroku certs:auto:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/slack-notify-prompt.sh",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/slack-notify-stop.sh",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/slack-notify-notification.sh",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
