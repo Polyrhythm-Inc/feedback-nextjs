@@ -29,6 +29,7 @@ export interface FeedbackNotificationData {
     userAgent: string;
     screenshotUrl?: string;
     screenshotDataId?: string;
+    githubIssueUrl?: string;
 }
 
 /**
@@ -129,8 +130,19 @@ export function createFeedbackNotificationMessage(data: FeedbackNotificationData
         ]
     };
 
-    // スクリーンショットURLがある場合は画像を追加
-    if (data.screenshotUrl) {
+    // GitHub Issue URLがある場合は追加
+    if (data.githubIssueUrl) {
+        message.blocks!.push({
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*GitHub Issue:*\n<${data.githubIssueUrl}|Issue を確認>`
+            }
+        });
+    }
+
+    // スクリーンショットURLがある場合は画像を追加（HTTP/HTTPSのURLのみ）
+    if (data.screenshotUrl && (data.screenshotUrl.startsWith('http://') || data.screenshotUrl.startsWith('https://'))) {
         message.blocks!.push({
             type: 'image',
             title: {

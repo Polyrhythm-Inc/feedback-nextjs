@@ -44,28 +44,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`フィードバックを受信しました: ID ${feedbackId}, スクリーンショットデータID: ${uploadedDataId}`);
 
-    // Slack通知
-    try {
-      const notificationSent = await notifyFeedbackReceived({
-        id: feedbackId.toString(),
-        comment,
-        tabUrl: '(スクリーンショットデータを参照)',
-        tabTitle: '(スクリーンショットデータを参照)',
-        timestamp: timestamp || Date.now(), // Slack通知では元のミリ秒のまま使用
-        userAgent: request.headers.get('user-agent') || 'Unknown',
-        screenshotUrl: '(スクリーンショットデータを参照)',
-        screenshotDataId: uploadedDataId
-      });
-
-      if (notificationSent) {
-        console.log(`Slack通知送信成功: フィードバックID ${feedbackId}`);
-      } else {
-        console.warn(`Slack通知送信失敗: フィードバックID ${feedbackId}`);
-      }
-    } catch (error) {
-      console.error(`Slack通知送信例外: フィードバックID ${feedbackId}`, error);
-      // Slack通知の失敗はレスポンスに影響させない
-    }
+    // GitHub Issue URLを保存するための変数
+    let githubIssueUrl: string | undefined;
 
     // GitHub issue作成
     try {
@@ -91,6 +71,7 @@ export async function POST(request: NextRequest) {
             
             if (result.success) {
               console.log(`GitHub issue作成成功: フィードバックID ${feedbackId}, Issue URL: ${result.issueUrl}`);
+              githubIssueUrl = result.issueUrl;
             } else {
               console.warn(`GitHub issue作成失敗: フィードバックID ${feedbackId}, Error: ${result.error}`);
               // エラー時にSlack通知を送信
@@ -120,6 +101,35 @@ export async function POST(request: NextRequest) {
         undefined
       );
       // GitHub issue作成の失敗はレスポンスに影響させない
+    }
+
+    // Slack通知（GitHub Issue作成後に実行）
+    try {
+      // フィードバックの詳細データを取得（既に取得済みの場合は再利用）
+      const feedbackData = await getFeedbackById(feedbackId);
+      
+      if (feedbackData && feedbackData.screenshotData) {
+        const notificationSent = await notifyFeedbackReceived({
+          id: feedbackId.toString(),
+          comment,
+          tabUrl: feedbackData.screenshotData.tabUrl,
+          tabTitle: feedbackData.screenshotData.tabTitle,
+          timestamp: feedbackData.timestamp, // Slack通知では元のミリ秒のまま使用
+          userAgent: feedbackData.userAgent || 'Unknown',
+          screenshotUrl: feedbackData.screenshotData.screenshotUrl,
+          screenshotDataId: uploadedDataId,
+          githubIssueUrl: githubIssueUrl // GitHub Issue URLを追加
+        });
+
+        if (notificationSent) {
+          console.log(`Slack通知送信成功: フィードバックID ${feedbackId}`);
+        } else {
+          console.warn(`Slack通知送信失敗: フィードバックID ${feedbackId}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Slack通知送信例外: フィードバックID ${feedbackId}`, error);
+      // Slack通知の失敗はレスポンスに影響させない
     }
 
     return NextResponse.json({
