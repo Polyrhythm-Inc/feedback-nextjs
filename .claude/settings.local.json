@@ -61,7 +61,9 @@
       "Bash(nslookup:*)",
       "Bash(heroku certs:auto:enable:*)",
       "Bash(heroku certs:auto:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git pull:*)",
+      "Bash(gh run list:*)"
     ],
     "deny": []
   },

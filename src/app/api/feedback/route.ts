@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertFeedbackNew, getFeedbackById } from '@/lib/database';
-import { notifyFeedbackReceived } from '@/lib/slack';
+import { notifyFeedbackReceived, notifyGitHubIssueError } from '@/lib/slack';
 import { findProjectByUrl } from '@/lib/projects';
 import { parseGitHubRepository, createGitHubIssue, createIssueDataFromFeedback } from '@/lib/github';
 
@@ -93,6 +93,13 @@ export async function POST(request: NextRequest) {
               console.log(`GitHub issue作成成功: フィードバックID ${feedbackId}, Issue URL: ${result.issueUrl}`);
             } else {
               console.warn(`GitHub issue作成失敗: フィードバックID ${feedbackId}, Error: ${result.error}`);
+              // エラー時にSlack通知を送信
+              await notifyGitHubIssueError(
+                feedbackId,
+                result.error || 'Unknown error',
+                `${project.displayName} (${project.name})`,
+                project.githubRepository
+              );
             }
           } else {
             console.warn(`GitHubリポジトリURL解析失敗: ${project.githubRepository}`);
@@ -105,6 +112,13 @@ export async function POST(request: NextRequest) {
       }
     } catch (error) {
       console.error(`GitHub issue作成例外: フィードバックID ${feedbackId}`, error);
+      // 例外時にもSlack通知を送信
+      await notifyGitHubIssueError(
+        feedbackId,
+        error instanceof Error ? error.message : 'Unknown error',
+        undefined,
+        undefined
+      );
       // GitHub issue作成の失敗はレスポンスに影響させない
     }
 

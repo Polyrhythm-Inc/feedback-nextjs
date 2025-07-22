@@ -167,4 +167,87 @@ export async function notifyFeedbackReceived(data: FeedbackNotificationData): Pr
         console.error('フィードバック通知生成エラー:', error);
         return false;
     }
+}
+
+/**
+ * GitHub Issue作成エラー通知用のSlackメッセージを生成
+ */
+export function createGitHubIssueErrorMessage(feedbackId: number, error: string, projectName?: string, repoUrl?: string): SlackMessage {
+    const message: SlackMessage = {
+        text: `GitHub Issue作成に失敗しました`,
+        blocks: [
+            {
+                type: 'header',
+                text: {
+                    type: 'plain_text',
+                    text: '⚠️ GitHub Issue作成エラー'
+                }
+            },
+            {
+                type: 'section',
+                fields: [
+                    {
+                        type: 'mrkdwn',
+                        text: `*フィードバックID:*\n${feedbackId}`
+                    },
+                    {
+                        type: 'mrkdwn',
+                        text: `*エラー発生時刻:*\n${new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`
+                    }
+                ]
+            }
+        ]
+    };
+
+    // プロジェクト情報がある場合は追加
+    if (projectName || repoUrl) {
+        message.blocks!.push({
+            type: 'section',
+            fields: [
+                ...(projectName ? [{
+                    type: 'mrkdwn' as const,
+                    text: `*プロジェクト:*\n${projectName}`
+                }] : []),
+                ...(repoUrl ? [{
+                    type: 'mrkdwn' as const,
+                    text: `*リポジトリ:*\n${repoUrl}`
+                }] : [])
+            ]
+        });
+    }
+
+    // エラー詳細を追加
+    message.blocks!.push({
+        type: 'section',
+        text: {
+            type: 'mrkdwn',
+            text: `*エラー内容:*\n\`\`\`${error}\`\`\``
+        }
+    });
+
+    // 対処法の提案
+    message.blocks!.push({
+        type: 'context',
+        elements: [
+            {
+                type: 'mrkdwn',
+                text: '💡 *考えられる原因:* リポジトリが存在しない、アクセス権限がない、GitHub Tokenが無効など'
+            }
+        ]
+    } as any);
+
+    return message;
+}
+
+/**
+ * GitHub Issue作成エラー時のSlack通知を送信
+ */
+export async function notifyGitHubIssueError(feedbackId: number, error: string, projectName?: string, repoUrl?: string): Promise<boolean> {
+    try {
+        const message = createGitHubIssueErrorMessage(feedbackId, error, projectName, repoUrl);
+        return await sendSlackMessage(message);
+    } catch (error) {
+        console.error('GitHub Issueエラー通知生成エラー:', error);
+        return false;
+    }
 } 
