@@ -1,5 +1,3 @@
-# Claude Code プロジェクト管理
-
 ## 📚 ドキュメント自動更新システム
 
 このプロジェクトでは、開発中に得られた知識を体系的に管理し、既存ドキュメントに反映させるシステムを採用しています。
@@ -67,35 +65,3 @@ CLAUDE.mdが肥大化することを防ぐため、以下の基準で適切に�
   - `docs/project-specific.md` - プロジェクト固有の設定
   - `docs/references.md` - 参照すべきドキュメントのリスト
 - **CLAUDE.mdには概要とリンクのみ残す**: 詳細は個別ファイルへ
-
-## vibe_kanban MCPサーバー API情報
-
-### タスク実行開始
-```
-POST http://127.0.0.1:60046/api/projects/{project_id}/tasks/{task_id}/attempts
-```
-ペイロード:
-```json
-{
-  "executor": "claude",
-  "base_branch": "main"
-}
-```
-
-### Pull Request作成
-```
-POST http://127.0.0.1:60046/api/projects/{project_id}/tasks/{task_id}/attempts/{attempt_id}/create-pr
-```
-ペイロード:
-```json
-{
-  "title": "プルリクエストタイトル",
-  "body": "プルリクエストの内容",
-  "base_branch": "main"
-}
-```
-
-### 使用例
-- プロジェクトID: `0c767303-3225-407c-9fcb-eda03b9470de` (Ipstation)
-- タスク実行を開始し、その後PRを作成する流れで使用
-- 更新日: 2025-07-20

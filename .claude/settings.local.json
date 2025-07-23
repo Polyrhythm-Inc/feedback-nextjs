@@ -1,10 +1,4 @@
 {
-  "env": {
-    "MCP_TIMEOUT": "30000",
-    "MCP_TOOL_TIMEOUT": "120000",
-    "BASH_DEFAULT_TIMEOUT_MS": "60000",
-    "BASH_MAX_TIMEOUT_MS": "300000"
-  },
   "permissions": {
     "allow": [
       "WebFetch(domain:docs.anthropic.com)",
@@ -41,29 +35,15 @@
       "Write",
       "Bash(echo:*)",
       "Bash(export:*)",
-      "Bash(.claude/hooks/slack-notify.sh:*)",
-      "Bash(.claude/hooks/slack-notify-debug.sh:*)",
-      "Bash(.claude/hooks/slack-notify-prompt.sh:*)",
-      "Bash(.claude/hooks/slack-notify-tool.sh:*)",
-      "Bash(.claude/hooks/slack-notify-stop.sh:*)",
-      "Bash(.claude/hooks/slack-notify-notification.sh:*)",
+      "Bash(/Users/yunoki/Dropbox/project/local-suite/src/local-suite/scripts/slack-notify.sh:*)",
       "Bash(test:*)",
       "Bash(git remote get-url:*)",
       "Bash(./scripts/generate-port.sh:*)",
-      "Bash(heroku apps:info:*)",
-      "Bash(heroku domains:add:*)",
-      "Bash(heroku domains:*)",
-      "Bash(aws route53 list-hosted-zones:*)",
-      "Bash(aws route53 change-resource-record-sets:*)",
-      "Bash(aws route53 get-change:*)",
-      "Bash(dig:*)",
+      "Bash(make:*)",
       "Bash(curl:*)",
-      "Bash(nslookup:*)",
-      "Bash(heroku certs:auto:enable:*)",
-      "Bash(heroku certs:auto:*)",
-      "Bash(grep:*)",
-      "Bash(git pull:*)",
-      "Bash(gh run list:*)"
+      "Bash(ngrok config:*)",
+      "Bash(~/Dropbox/project/scripts/slack-notify.sh:*)",
+      "Bash(env)"
     ],
     "deny": []
   },
@@ -73,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/slack-notify-prompt.sh",
+            "command": "bash -c 'PROJECT_ROOT=\"$(pwd)\"; \"/Users/yunoki/Dropbox/project/local-suite/src/local-suite/scripts/slack-notify.sh\" \"$PROJECT_ROOT\" \"UserPromptSubmit\"'",
             "timeout": 10000
           }
         ]
@@ -84,7 +64,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/slack-notify-stop.sh",
+            "command": "bash -c 'PROJECT_ROOT=\"$(pwd)\"; \"/Users/yunoki/Dropbox/project/local-suite/src/local-suite/scripts/slack-notify.sh\" \"$PROJECT_ROOT\" \"Stop\"'",
             "timeout": 10000
           }
         ]
@@ -95,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/slack-notify-notification.sh",
+            "command": "bash -c 'PROJECT_ROOT=\"$(pwd)\"; \"/Users/yunoki/Dropbox/project/local-suite/src/local-suite/scripts/slack-notify.sh\" \"$PROJECT_ROOT\" \"Notification\"'",
             "timeout": 10000
           }
         ]
