@@ -1,6 +1,6 @@
 # Vibe Kanban Makefile
 
-.PHONY: help install dev dev-dynamic build lint test deploy-dev
+.PHONY: help install dev dev-dynamic build lint test deploy-dev deploy
 
 # デフォルトターゲット: ヘルプを表示
 help:
@@ -64,3 +64,8 @@ deploy-dev:
 	@echo "開発環境へのデプロイを開始..."
 	@./deploy-scripts/deploy-heroku.sh
 	@echo "デプロイが完了しました"
+
+# Herokuへのデプロイ
+deploy:
+	@echo "Herokuへのデプロイを開始..."
+	@./deploy-scripts/deploy-heroku.sh
