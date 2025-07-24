@@ -44,6 +44,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'feedback' | 'logs'>('feedback');
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [taskCreationResult, setTaskCreationResult] = useState<{ success: boolean; message: string; taskUrl?: string } | null>(null);
 
   // フィードバック一覧の取得
   const fetchFeedbacks = async () => {
@@ -90,6 +92,51 @@ export default function Home() {
       console.error('エラーログ取得エラー:', err);
     }
   };
+
+  // タスク作成処理
+  const handleCreateTask = async () => {
+    if (!selectedFeedback) return;
+
+    setIsCreatingTask(true);
+    setTaskCreationResult(null);
+
+    try {
+      const response = await fetch(`/api/feedback/${selectedFeedback.id}/create-task`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setTaskCreationResult({
+          success: true,
+          message: 'タスクが正常に作成されました',
+          taskUrl: data.taskUrl,
+        });
+      } else {
+        setTaskCreationResult({
+          success: false,
+          message: data.error || 'タスクの作成に失敗しました',
+        });
+      }
+    } catch (error) {
+      setTaskCreationResult({
+        success: false,
+        message: 'タスク作成中にエラーが発生しました',
+      });
+      console.error('タスク作成エラー:', error);
+    } finally {
+      setIsCreatingTask(false);
+    }
+  };
+
+  // フィードバック選択時にタスク作成結果をクリア
+  useEffect(() => {
+    setTaskCreationResult(null);
+  }, [selectedFeedback]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -315,16 +362,84 @@ export default function Home() {
             {/* フィードバック詳細 */}
             <div className="xl:col-span-2">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200">
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     詳細情報
                   </h2>
+                  {selectedFeedback && (
+                    <button
+                      onClick={handleCreateTask}
+                      disabled={isCreatingTask}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        isCreatingTask
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                      }`}
+                    >
+                      {isCreatingTask ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          作成中...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          タスクに転送
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
                 <div className="p-6">
+                  {/* タスク作成結果の通知 */}
+                  {taskCreationResult && (
+                    <div
+                      className={`mb-4 p-4 rounded-lg flex items-start gap-3 ${
+                        taskCreationResult.success
+                          ? 'bg-green-50 text-green-800 border border-green-200'
+                          : 'bg-red-50 text-red-800 border border-red-200'
+                      }`}
+                    >
+                      {taskCreationResult.success ? (
+                        <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{taskCreationResult.message}</p>
+                        {taskCreationResult.taskUrl && (
+                          <a
+                            href={taskCreationResult.taskUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm underline hover:no-underline mt-1 inline-block"
+                          >
+                            タスクを表示 →
+                          </a>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setTaskCreationResult(null)}
+                        className="text-sm hover:opacity-70"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
                   {selectedFeedback ? (
                     <div className="space-y-6">
                       {/* コメント */}
