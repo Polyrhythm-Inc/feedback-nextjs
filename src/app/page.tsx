@@ -46,6 +46,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'feedback' | 'logs'>('feedback');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [taskCreationResult, setTaskCreationResult] = useState<{ success: boolean; message: string; taskUrl?: string } | null>(null);
+  const [isEditingComment, setIsEditingComment] = useState(false);
+  const [editedComment, setEditedComment] = useState('');
+  const [isSavingComment, setIsSavingComment] = useState(false);
 
   // フィードバック一覧の取得
   const fetchFeedbacks = async () => {
@@ -137,6 +140,54 @@ export default function Home() {
   useEffect(() => {
     setTaskCreationResult(null);
   }, [selectedFeedback]);
+
+  // コメント編集を開始
+  const startEditingComment = () => {
+    if (selectedFeedback) {
+      setEditedComment(selectedFeedback.comment);
+      setIsEditingComment(true);
+    }
+  };
+
+  // コメント編集をキャンセル
+  const cancelEditingComment = () => {
+    setIsEditingComment(false);
+    setEditedComment('');
+  };
+
+  // コメントを保存
+  const saveComment = async () => {
+    if (!selectedFeedback || isSavingComment) return;
+
+    setIsSavingComment(true);
+    try {
+      const response = await fetch(`/api/feedback/${selectedFeedback.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ comment: editedComment }),
+      });
+
+      if (!response.ok) {
+        throw new Error('コメントの更新に失敗しました');
+      }
+
+      // 更新成功後、フィードバックリストを再取得
+      await fetchFeedbacks();
+      
+      // 選択中のフィードバックを更新（コメントを即座に反映）
+      setSelectedFeedback({ ...selectedFeedback, comment: editedComment });
+
+      setIsEditingComment(false);
+      setEditedComment('');
+    } catch (error) {
+      console.error('コメント更新エラー:', error);
+      alert('コメントの更新に失敗しました');
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -444,16 +495,63 @@ export default function Home() {
                     <div className="space-y-6">
                       {/* コメント */}
                       <div>
-                        <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          コメント
-                        </h3>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            コメント
+                          </h3>
+                          {!isEditingComment && (
+                            <button
+                              onClick={startEditingComment}
+                              className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              編集
+                            </button>
+                          )}
+                        </div>
                         <div className="bg-gray-50 rounded-lg p-4">
-                          <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                            {selectedFeedback.comment}
-                          </p>
+                          {isEditingComment ? (
+                            <div className="space-y-3">
+                              <textarea
+                                value={editedComment}
+                                onChange={(e) => setEditedComment(e.target.value)}
+                                className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y text-black"
+                                placeholder="コメントを入力..."
+                                disabled={isSavingComment}
+                              />
+                              <div className="flex gap-2 justify-end">
+                                <button
+                                  onClick={cancelEditingComment}
+                                  disabled={isSavingComment}
+                                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  キャンセル
+                                </button>
+                                <button
+                                  onClick={saveComment}
+                                  disabled={isSavingComment}
+                                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                  {isSavingComment && (
+                                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                  )}
+                                  保存
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                              {selectedFeedback.comment}
+                            </p>
+                          )}
                         </div>
                       </div>
 

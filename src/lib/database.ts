@@ -140,6 +140,26 @@ export async function getFeedbackById(id: number): Promise<FeedbackRecord | null
   }
 }
 
+// フィードバックのコメント更新
+export async function updateFeedbackComment(id: number, comment: string): Promise<boolean> {
+  try {
+    await prisma.feedback.update({
+      where: { id },
+      data: { comment }
+    });
+
+    console.log(`フィードバックのコメントを更新しました: ID ${id}`);
+    return true;
+  } catch (error: any) {
+    if (error && error.code === 'P2025') {
+      // レコードが見つからない場合
+      return false;
+    }
+    console.error('フィードバックコメント更新エラー:', error);
+    throw new Error('フィードバックのコメント更新に失敗しました');
+  }
+}
+
 // フィードバックの削除
 export async function deleteFeedback(id: number): Promise<boolean> {
   try {
