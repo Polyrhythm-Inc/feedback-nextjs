@@ -43,7 +43,9 @@
       "Bash(curl:*)",
       "Bash(ngrok config:*)",
       "Bash(~/Dropbox/project/scripts/slack-notify.sh:*)",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(heroku ps:*)",
+      "Bash(heroku apps:info:*)"
     ],
     "deny": []
   },

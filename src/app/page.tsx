@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { User, checkAuthStatus, getClientLoginUrl } from '@polyrhythm-inc/nextjs-auth-client';
 
 interface ScreenshotData {
   id: string;
@@ -37,6 +38,8 @@ interface ErrorLog {
 }
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [feedbacks, setFeedbacks] = useState<FeedbackRecord[]>([]);
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackRecord | null>(null);
@@ -189,14 +192,33 @@ export default function Home() {
     }
   };
 
+  // 認証チェック
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchFeedbacks(), fetchErrorLogs()]);
-      setLoading(false);
+    const validateAuth = async () => {
+      try {
+        const userData = await checkAuthStatus();
+        if (userData) {
+          setUser(userData);
+          // 認証成功後にデータを読み込み
+          setLoading(true);
+          await Promise.all([fetchFeedbacks(), fetchErrorLogs()]);
+          setLoading(false);
+        } else {
+          // 未認証の場合、ログイン画面にリダイレクト
+          const loginUrl = getClientLoginUrl();
+          window.location.href = loginUrl;
+        }
+      } catch (error) {
+        console.error('認証チェックエラー:', error);
+        // エラー時もログイン画面にリダイレクト
+        const loginUrl = getClientLoginUrl();
+        window.location.href = loginUrl;
+      } finally {
+        setAuthLoading(false);
+      }
     };
 
-    loadData();
+    validateAuth();
   }, []);
 
   const formatDate = (timestamp: string | number) => {
@@ -242,6 +264,27 @@ export default function Home() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">認証状態を確認中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">ログイン画面にリダイレクト中...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
