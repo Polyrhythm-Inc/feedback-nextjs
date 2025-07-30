@@ -6,7 +6,12 @@ const authMiddleware = createAuthMiddleware({
     '/'
   ],
   excludePaths: [
-    '/api/health'
+    '/api/health',
+    '/api/feedback',
+    '/api/feedback/:path*',
+    '/api/uploads/:path*',
+    '/api/s3/:path*',
+    '/api/logs',
   ]
 });
 
