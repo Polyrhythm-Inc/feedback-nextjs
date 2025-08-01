@@ -609,7 +609,7 @@ export default function Home() {
                         <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                           <div>
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">タイトル</label>
-                            <p className="text-sm text-gray-800 mt-1">{selectedFeedback.screenshotData.tabTitle}</p>
+                            <p className="text-sm text-gray-800 mt-1">{selectedFeedback.screenshotData?.tabTitle || 'タイトル不明'}</p>
                           </div>
                           <div>
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">URL</label>
