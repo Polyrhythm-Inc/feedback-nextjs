@@ -39,30 +39,16 @@ jobs:
         node-version: '20'
         cache: 'npm'
 
-    - name: Configure git for private repo access
+    - name: Configure npm for GitHub Packages
       run: |
-        # GitHub App tokenをGITHUB_TOKENとして環境変数に設定
-        echo "GITHUB_TOKEN=${{ steps.app-token.outputs.token }}" >> $GITHUB_ENV
+        # .npmrcファイルを作成してGitHub Packagesの認証を設定
+        echo "@polyrhythm-inc:registry=https://npm.pkg.github.com" > .npmrc
+        echo "//npm.pkg.github.com/:_authToken=${{ steps.app-token.outputs.token }}" >> .npmrc
         
-        # Git設定 - すべてのGitHubアクセスをHTTPSに変換
-        git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/".insteadOf "ssh://git@github.com/"
-        git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/".insteadOf "git@github.com:"
-        git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
-        
-        # デバッグ情報
-        echo "Git config set for private repo access"
-        git config --global --list | grep url
+        echo "npm config for GitHub Packages set"
 
     - name: Install dependencies
-      env:
-        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        GIT_ASKPASS: echo
-        GIT_USERNAME: x-access-token
-        GIT_PASSWORD: ${{ steps.app-token.outputs.token }}
-      run: |
-        # package-lock.jsonを削除して新規インストール
-        rm -f package-lock.json
-        npm install --loglevel verbose
+      run: npm ci
 
     - name: Build application
       run: npm run build
