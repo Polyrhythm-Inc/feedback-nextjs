@@ -32,8 +32,6 @@ jobs:
       with:
         app-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: Polyrhythm-Inc
-        repositories: nextjs-auth-client,feedback-nextjs
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -41,10 +39,12 @@ jobs:
         node-version: '20'
         cache: 'npm'
 
-    - name: Debug - Check token generation
+    - name: Debug - Check token and access
       run: |
         echo "Token generated: ${{ steps.generate_token.outputs.token != '' }}"
         echo "Token length: ${#TOKEN}"
+        # Test access to the repository
+        curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $TOKEN" https://api.github.com/repos/Polyrhythm-Inc/nextjs-auth-client || echo "Access check failed"
       env:
         TOKEN: ${{ steps.generate_token.outputs.token }}
 
