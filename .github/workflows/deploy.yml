@@ -33,7 +33,7 @@ jobs:
         app-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
         owner: Polyrhythm-Inc
-        repositories: nextjs-auth-client,feedback-suite
+        repositories: nextjs-auth-client,feedback-nextjs
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
