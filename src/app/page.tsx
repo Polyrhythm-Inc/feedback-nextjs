@@ -614,12 +614,12 @@ export default function Home() {
                           <div>
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">URL</label>
                             <a
-                              href={selectedFeedback.screenshotData.tabUrl}
+                              href={selectedFeedback.screenshotData?.tabUrl || '#'}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-sm text-blue-600 hover:text-blue-800 underline break-all mt-1 block"
                             >
-                              {selectedFeedback.screenshotData.tabUrl}
+                              {selectedFeedback.screenshotData?.tabUrl || 'URL不明'}
                             </a>
                           </div>
                         </div>
@@ -635,7 +635,7 @@ export default function Home() {
                         </h3>
                         <div className="bg-gray-50 rounded-lg p-4">
                           <img
-                            src={selectedFeedback.screenshotData.screenshotUrl}
+                            src={selectedFeedback.screenshotData?.screenshotUrl || ''}
                             alt="スクリーンショット"
                             className="max-w-full h-auto max-h-80 object-contain border border-gray-200 rounded-lg shadow-sm"
                             onError={(e) => {
@@ -661,13 +661,13 @@ export default function Home() {
                         </h3>
                         <div className="bg-gray-50 rounded-lg p-4">
                           <textarea
-                            value={selectedFeedback.screenshotData.domTree}
+                            value={selectedFeedback.screenshotData?.domTree || ''}
                             readOnly
                             className="w-full h-64 text-xs font-mono bg-white border border-gray-200 rounded p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="DOMツリーの情報"
                           />
                           <div className="mt-2 text-xs text-gray-500">
-                            サイズ: {selectedFeedback.screenshotData.domTree.length.toLocaleString()} 文字
+                            サイズ: {(selectedFeedback.screenshotData?.domTree?.length || 0).toLocaleString()} 文字
                           </div>
                         </div>
                       </div>
@@ -688,7 +688,7 @@ export default function Home() {
                             </div>
                             <div>
                               <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">スクリーンショット撮影日時</dt>
-                              <dd className="text-gray-800 mt-1">{formatDate(selectedFeedback.screenshotData.timestamp)}</dd>
+                              <dd className="text-gray-800 mt-1">{selectedFeedback.screenshotData?.timestamp ? formatDate(selectedFeedback.screenshotData.timestamp) : '-'}</dd>
                             </div>
                             <div>
                               <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">フィードバック作成日時</dt>
@@ -704,12 +704,12 @@ export default function Home() {
                                 <dd className="text-gray-800 mt-1 text-xs font-mono break-all">{selectedFeedback.userAgent}</dd>
                               </div>
                             )}
-                            {selectedFeedback.screenshotData.pageInfo && (
+                            {selectedFeedback.screenshotData?.pageInfo && (
                               <div>
                                 <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">ページ情報 (JSON)</dt>
                                 <dd className="text-gray-800 mt-1">
                                   <pre className="text-xs font-mono bg-white border rounded p-2 overflow-x-auto">
-                                    {JSON.stringify(selectedFeedback.screenshotData.pageInfo, null, 2)}
+                                    {JSON.stringify(selectedFeedback.screenshotData?.pageInfo, null, 2)}
                                   </pre>
                                 </dd>
                               </div>
