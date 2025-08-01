@@ -149,6 +149,36 @@ jobs:
             }
           }'
 
+    - name: Send error details to Feedback API
+      if: failure()
+      run: |
+        # エラー詳細を収集
+        ERROR_MESSAGE="GitHub Actions deployment failed for feedback-suite.polyrhythm.tokyo"
+        WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        
+        # フィードバックAPIにエラーを送信
+        curl -X POST "https://feedback-suite.polyrhythm.tokyo/api/feedback" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "comment": "[自動エラー報告] '"$ERROR_MESSAGE"'",
+            "timestamp": '"$(date +%s)000"',
+            "errorDetails": {
+              "source": "github-actions-deploy",
+              "repository": "'"${{ github.repository }}"'",
+              "workflow": "Deploy to Heroku",
+              "workflowRunId": "'"${{ github.run_id }}"'",
+              "jobId": "'"${{ github.job }}"'",
+              "branch": "'"${{ github.ref_name }}"'",
+              "commitHash": "'"${{ github.sha }}"'",
+              "actor": "'"${{ github.actor }}"'",
+              "environment": "'"${{ github.event.inputs.environment || 'production' }}"'",
+              "platform": "heroku",
+              "appName": "'"${{ secrets.HEROKU_APP_NAME }}"'",
+              "workflowUrl": "'"$WORKFLOW_URL"'",
+              "failedStep": "'"${{ steps.*.name[failure()] || 'Unknown' }}"'"
+            }
+          }' || echo "Warning: Failed to send error to Feedback API"
+
     - name: Notify deployment status
       if: always()
       run: |
