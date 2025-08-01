@@ -164,4 +164,125 @@ jobs:
         else
           echo "❌ Deployment failed!"
           echo "🔗 Check logs: $WEB_URL"
-        fi 
+        fi
+
+    - name: Send Slack notification on success
+      if: success()
+      uses: slackapi/slack-github-action@v1.24.0
+      with:
+        payload: |
+          {
+            "text": "✅ デプロイ成功",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "✅ Feedback Nextjs デプロイ成功"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*アプリケーション:*\nfeedback-suite.polyrhythm.tokyo"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*環境:*\n${{ github.event.inputs.environment || 'production' }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*ブランチ:*\n${{ github.ref_name }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*コミット:*\n${{ github.sha }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*実行者:*\n${{ github.actor }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*URL:*\n<https://feedback-a9cba1104830.herokuapp.com|アプリケーションを開く>"
+                  }
+                ]
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "GitHub Actions • <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフローを表示>"
+                  }
+                ]
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+    - name: Send Slack notification on failure
+      if: failure()
+      uses: slackapi/slack-github-action@v1.24.0
+      with:
+        payload: |
+          {
+            "text": "❌ デプロイ失敗",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "❌ Feedback Nextjs デプロイ失敗"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*アプリケーション:*\nfeedback-suite.polyrhythm.tokyo"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*環境:*\n${{ github.event.inputs.environment || 'production' }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*ブランチ:*\n${{ github.ref_name }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*コミット:*\n${{ github.sha }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*実行者:*\n${{ github.actor }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "⚠️ *デプロイメントに失敗しました。ワークフローのログを確認してください。*"
+                }
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "GitHub Actions • <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフローを表示>"
+                  }
+                ]
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK 
