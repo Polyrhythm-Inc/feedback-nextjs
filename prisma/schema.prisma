@@ -34,14 +34,14 @@ model ScreenshotData {
 model Feedback {
   id               Int      @id @default(autoincrement())
   comment          String   @db.Text
-  screenshotDataId String   @map("screenshot_data_id")
+  screenshotDataId String?  @map("screenshot_data_id")
   timestamp        Int
   userAgent        String?  @map("user_agent") @db.VarChar(512)
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  // リレーション
-  screenshotData ScreenshotData @relation(fields: [screenshotDataId], references: [id])
+  // リレーション（オプショナル）
+  screenshotData ScreenshotData? @relation(fields: [screenshotDataId], references: [id])
 
   @@map("feedbacks")
 }

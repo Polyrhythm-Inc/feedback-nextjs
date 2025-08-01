@@ -4,6 +4,7 @@ import { notifyFeedbackReceived, notifyGitHubIssueError } from '@/lib/slack';
 import { findProjectByUrl } from '@/lib/projects';
 import { parseGitHubRepository, createGitHubIssue, createIssueDataFromFeedback } from '@/lib/github';
 import { createTaskFromFeedback, getTaskServerApiKey } from '@/lib/task-server';
+import { prisma } from '@/lib/prisma';
 
 // CORS対応のヘッダー
 const corsHeaders = {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // リクエストデータの検証
-    const { comment, uploadedDataId, timestamp } = body;
+    const { comment, uploadedDataId, timestamp, errorDetails } = body;
 
     if (!comment) {
       return NextResponse.json(
@@ -26,71 +27,105 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!uploadedDataId) {
-      return NextResponse.json(
-        { error: 'uploadedDataId が必須です。新しいAPIフォーマットを使用してください。' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
+    // uploadedDataIdがある場合、対応するスクリーンショットデータが存在するかチェック
+    let validScreenshotDataId: string | null = null;
 
-    // 新しい形式のみをサポート
-    console.log('フィードバック受信:', { uploadedDataId, comment });
+    if (uploadedDataId) {
+      try {
+        // スクリーンショットデータの存在確認
+        const existingScreenshotData = await prisma.screenshotData.findUnique({
+          where: { id: uploadedDataId }
+        });
+
+        if (existingScreenshotData) {
+          validScreenshotDataId = uploadedDataId;
+          console.log('フィードバック受信: 既存のスクリーンショットデータあり', { uploadedDataId, comment });
+        } else {
+          console.log('フィードバック受信: uploadedDataIdが指定されましたが、対応するスクリーンショットデータが見つかりません', { uploadedDataId, comment });
+          validScreenshotDataId = null;
+        }
+      } catch (error) {
+        console.warn('スクリーンショットデータの存在確認でエラー:', error);
+        validScreenshotDataId = null;
+      }
+    } else {
+      console.log('フィードバック受信: スクリーンショットデータなし', { comment });
+    }
 
     const feedbackId = await insertFeedbackNew({
       comment,
-      screenshotDataId: uploadedDataId,
+      screenshotDataId: validScreenshotDataId,
       timestamp: timestamp || Date.now(),
       userAgent: request.headers.get('user-agent') || undefined
     });
 
-    console.log(`フィードバックを受信しました: ID ${feedbackId}, スクリーンショットデータID: ${uploadedDataId}`);
+    console.log(`フィードバックを受信しました: ID ${feedbackId}, スクリーンショットデータID: ${uploadedDataId || 'なし'}`);
 
     // GitHub Issue URLを保存するための変数
     let githubIssueUrl: string | undefined;
 
     // GitHub issue作成
     try {
-      // フィードバックの詳細データを取得（スクリーンショットデータを含む）
+      // フィードバックの詳細データを取得
       const feedbackData = await getFeedbackById(feedbackId);
-      
-      if (feedbackData && feedbackData.screenshotData) {
-        console.log(`GitHub issue作成を開始: フィードバックID ${feedbackId}, URL: ${feedbackData.screenshotData.tabUrl}`);
-        
-        // URLからプロジェクトを検索
-        const project = await findProjectByUrl(feedbackData.screenshotData.tabUrl);
-        
-        if (project && project.githubRepository) {
-          console.log(`プロジェクトを発見: ${project.name} (${project.displayName}) - ${project.githubRepository}`);
-          
-          // GitHubリポジトリ情報を解析
-          const repository = parseGitHubRepository(project.githubRepository);
-          
-          if (repository) {
-            // GitHub issue作成
-            const issueData = createIssueDataFromFeedback(feedbackData);
-            const result = await createGitHubIssue(repository, issueData);
-            
-            if (result.success) {
-              console.log(`GitHub issue作成成功: フィードバックID ${feedbackId}, Issue URL: ${result.issueUrl}`);
-              githubIssueUrl = result.issueUrl;
+
+      if (feedbackData) {
+        // URLを取得（スクリーンショットデータがある場合はそこから、ない場合はerrorDetailsから）
+        let tabUrl: string | undefined;
+
+        if (feedbackData.screenshotData) {
+          tabUrl = feedbackData.screenshotData.tabUrl;
+        } else if (errorDetails?.pageUrl) {
+          tabUrl = errorDetails.pageUrl;
+        }
+
+        if (tabUrl) {
+          console.log(`GitHub issue作成を開始: フィードバックID ${feedbackId}, URL: ${tabUrl}`);
+
+          // URLからプロジェクトを検索
+          const project = await findProjectByUrl(tabUrl);
+
+          if (project && project.githubRepository) {
+            console.log(`プロジェクトを発見: ${project.name} (${project.displayName}) - ${project.githubRepository}`);
+
+            // GitHubリポジトリ情報を解析
+            const repository = parseGitHubRepository(project.githubRepository);
+
+            if (repository) {
+              // GitHub issue作成
+              const issueData = createIssueDataFromFeedback({
+                id: feedbackData.id,
+                comment: feedbackData.comment,
+                screenshotData: feedbackData.screenshotData,
+                userAgent: feedbackData.userAgent,
+                timestamp: feedbackData.timestamp
+              });
+              const result = await createGitHubIssue(repository, issueData);
+
+              if (result.success) {
+                console.log(`GitHub issue作成成功: フィードバックID ${feedbackId}, Issue URL: ${result.issueUrl}`);
+                githubIssueUrl = result.issueUrl;
+              } else {
+                console.warn(`GitHub issue作成失敗: フィードバックID ${feedbackId}, Error: ${result.error}`);
+                // エラー時にSlack通知を送信
+                await notifyGitHubIssueError(
+                  feedbackId,
+                  result.error || 'Unknown error',
+                  `${project.displayName} (${project.name})`,
+                  project.githubRepository
+                );
+              }
             } else {
-              console.warn(`GitHub issue作成失敗: フィードバックID ${feedbackId}, Error: ${result.error}`);
-              // エラー時にSlack通知を送信
-              await notifyGitHubIssueError(
-                feedbackId,
-                result.error || 'Unknown error',
-                `${project.displayName} (${project.name})`,
-                project.githubRepository
-              );
+              console.warn(`GitHubリポジトリURL解析失敗: ${project.githubRepository}`);
             }
           } else {
-            console.warn(`GitHubリポジトリURL解析失敗: ${project.githubRepository}`);
+            console.log(`プロジェクトが見つからないか、GitHubリポジトリが設定されていません: URL ${tabUrl}`);
           }
         } else {
-          console.log(`プロジェクトが見つからないか、GitHubリポジトリが設定されていません: URL ${feedbackData.screenshotData.tabUrl}`);
+          console.log(`GitHub issue作成スキップ: URLが見つかりません (フィードバックID ${feedbackId})`);
         }
       } else {
-        console.warn(`フィードバックデータまたはスクリーンショットデータが見つかりません: ID ${feedbackId}`);
+        console.warn(`フィードバックデータが見つかりません: ID ${feedbackId}`);
       }
     } catch (error) {
       console.error(`GitHub issue作成例外: フィードバックID ${feedbackId}`, error);
@@ -107,16 +142,16 @@ export async function POST(request: NextRequest) {
     // タスク管理サーバへのタスク作成
     try {
       const apiKey = getTaskServerApiKey();
-      
+
       if (apiKey) {
         // フィードバックの詳細データを取得（既に取得済みの場合は再利用）
         const feedbackData = await getFeedbackById(feedbackId);
-        
-        if (feedbackData && feedbackData.screenshotData) {
+
+        if (feedbackData) {
           console.log(`タスク管理サーバへのタスク作成を開始: フィードバックID ${feedbackId}`);
-          
+
           const taskResult = await createTaskFromFeedback(feedbackData, apiKey);
-          
+
           if (taskResult.success) {
             console.log(`タスク作成成功: フィードバックID ${feedbackId}, タスクID: ${taskResult.taskId}, URL: ${taskResult.taskUrl}`);
           } else {
@@ -137,16 +172,30 @@ export async function POST(request: NextRequest) {
     try {
       // フィードバックの詳細データを取得（既に取得済みの場合は再利用）
       const feedbackData = await getFeedbackById(feedbackId);
-      
-      if (feedbackData && feedbackData.screenshotData) {
+
+      if (feedbackData) {
+        // URLとタイトルを取得（スクリーンショットデータまたはエラー詳細から）
+        let tabUrl = 'Unknown URL';
+        let tabTitle = 'フィードバック';
+        let screenshotUrl: string | undefined;
+
+        if (feedbackData.screenshotData) {
+          tabUrl = feedbackData.screenshotData.tabUrl;
+          tabTitle = feedbackData.screenshotData.tabTitle;
+          screenshotUrl = feedbackData.screenshotData.screenshotUrl;
+        } else if (errorDetails?.pageUrl) {
+          tabUrl = errorDetails.pageUrl;
+          tabTitle = `エラーレポート - ${uploadedDataId || 'unknown'}`;
+        }
+
         const notificationSent = await notifyFeedbackReceived({
           id: feedbackId.toString(),
           comment,
-          tabUrl: feedbackData.screenshotData.tabUrl,
-          tabTitle: feedbackData.screenshotData.tabTitle,
+          tabUrl,
+          tabTitle,
           timestamp: feedbackData.timestamp, // Slack通知では元のミリ秒のまま使用
           userAgent: feedbackData.userAgent || 'Unknown',
-          screenshotUrl: feedbackData.screenshotData.screenshotUrl,
+          screenshotUrl,
           screenshotDataId: uploadedDataId,
           githubIssueUrl: githubIssueUrl // GitHub Issue URLを追加
         });

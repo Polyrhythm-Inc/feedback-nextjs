@@ -3,12 +3,12 @@ import { prisma } from './prisma';
 export interface FeedbackRecord {
   id: number;
   comment: string;
-  screenshotDataId: string;
+  screenshotDataId: string | null;
   timestamp: number;
   userAgent: string | null;
   createdAt: Date;
   updatedAt: Date;
-  screenshotData: ScreenshotDataRecord;
+  screenshotData: ScreenshotDataRecord | null;
 }
 
 // 古いFeedbackCreateData（削除予定）
@@ -44,7 +44,7 @@ export interface ScreenshotDataCreateData {
 
 export interface FeedbackCreateDataNew {
   comment: string;
-  screenshotDataId: string;
+  screenshotDataId?: string | null;
   timestamp: number;
   userAgent?: string;
 }
@@ -88,13 +88,14 @@ export async function insertFeedbackNew(data: FeedbackCreateDataNew): Promise<nu
     const feedback = await prisma.feedback.create({
       data: {
         comment: data.comment,
-        screenshotDataId: data.screenshotDataId,
+        screenshotDataId: data.screenshotDataId || null,
         timestamp: Math.floor(data.timestamp / 1000), // ミリ秒を秒に変換
         userAgent: data.userAgent || null,
       },
     });
 
-    console.log(`フィードバックを保存しました: ID ${feedback.id} (スクリーンショットデータID: ${data.screenshotDataId})`);
+    const screenshotInfo = data.screenshotDataId ? ` (スクリーンショットデータID: ${data.screenshotDataId})` : ' (スクリーンショットデータなし)';
+    console.log(`フィードバックを保存しました: ID ${feedback.id}${screenshotInfo}`);
     return feedback.id;
   } catch (error) {
     console.error('フィードバック保存エラー:', error);

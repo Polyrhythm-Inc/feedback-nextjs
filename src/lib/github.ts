@@ -30,14 +30,14 @@ export function parseGitHubRepository(githubUrl: string): GitHubRepository | nul
             };
         }
 
-            // https://github.com/owner/repo 形式
-    const httpsMatch = githubUrl.match(/https:\/\/github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/);
-    if (httpsMatch) {
-      return {
-        owner: httpsMatch[1],
-        repo: httpsMatch[2],
-      };
-    }
+        // https://github.com/owner/repo 形式
+        const httpsMatch = githubUrl.match(/https:\/\/github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+        if (httpsMatch) {
+            return {
+                owner: httpsMatch[1],
+                repo: httpsMatch[2],
+            };
+        }
 
         console.warn('GitHubリポジトリURLの形式が不正です:', githubUrl);
         return null;
@@ -94,7 +94,7 @@ export function createIssueDataFromFeedback(feedback: {
         tabTitle: string;
         screenshotUrl: string;
         timestamp: number;
-    };
+    } | null;
     userAgent: string | null;
     timestamp: number;
 }): GitHubIssueData {
@@ -109,22 +109,38 @@ export function createIssueDataFromFeedback(feedback: {
         second: '2-digit'
     });
 
-    const title = `[フィードバック] ${feedback.screenshotData.tabTitle}`;
+    // スクリーンショットデータがある場合とない場合で分岐
+    const title = feedback.screenshotData
+        ? `[フィードバック] ${feedback.screenshotData.tabTitle}`
+        : `[フィードバック] エラーレポート`;
 
-    const body = `## フィードバック詳細
+    let body = `## フィードバック詳細
 
 **コメント:**
 ${feedback.comment}
 
-**ページ情報:**
+**受信日時:** ${formattedDate}
+
+`;
+
+    // スクリーンショットデータがある場合の情報を追加
+    if (feedback.screenshotData) {
+        body += `**ページ情報:**
 - URL: ${feedback.screenshotData.tabUrl}
 - タイトル: ${feedback.screenshotData.tabTitle}
-- 受信日時: ${formattedDate}
 
-**スクリーンショット:**
+`;
+
+        // スクリーンショットURLがある場合のみ画像を表示
+        if (feedback.screenshotData.screenshotUrl) {
+            body += `**スクリーンショット:**
 ![Screenshot](${feedback.screenshotData.screenshotUrl})
 
-**技術情報:**
+`;
+        }
+    }
+
+    body += `**技術情報:**
 - フィードバックID: ${feedback.id}
 - User Agent: ${feedback.userAgent || 'Unknown'}
 
