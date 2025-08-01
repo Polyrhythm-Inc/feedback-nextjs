@@ -180,7 +180,7 @@ jobs:
               "platform": "heroku",
               "appName": "'"${{ secrets.HEROKU_APP_NAME }}"'",
               "workflowUrl": "'"$WORKFLOW_URL"'",
-              "failedStep": "'"${{ steps.*.name[failure()] || 'Unknown' }}"'"
+              "failedStep": "Unknown"
             }
           }' || echo "Warning: Failed to send error to Feedback API"
 
