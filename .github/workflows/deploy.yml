@@ -19,20 +19,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      packages: read
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
-    - name: Generate GitHub App Token
-      id: app-token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: Polyrhythm-Inc
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -44,7 +39,7 @@ jobs:
       run: |
         # .npmrcファイルを作成してGitHub Packagesの認証を設定
         echo "@polyrhythm-inc:registry=https://npm.pkg.github.com" > .npmrc
-        echo "//npm.pkg.github.com/:_authToken=${{ steps.app-token.outputs.token }}" >> .npmrc
+        echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
         
         # package-lock.jsonを削除（古いgit参照を削除するため）
         rm -f package-lock.json
