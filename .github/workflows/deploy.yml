@@ -27,7 +27,7 @@ jobs:
         fetch-depth: 0
 
     - name: Generate GitHub App Token
-      id: generate_token
+      id: app-token
       uses: actions/create-github-app-token@v1
       with:
         app-id: ${{ secrets.APP_ID }}
@@ -39,38 +39,16 @@ jobs:
         node-version: '20'
         cache: 'npm'
 
-    - name: Debug - Check token and access
+    - name: Configure npm for GitHub Packages
       run: |
-        echo "Token generated: ${{ steps.generate_token.outputs.token != '' }}"
-        echo "Token length: ${#TOKEN}"
-        # Test access to the repository
-        curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $TOKEN" https://api.github.com/repos/Polyrhythm-Inc/nextjs-auth-client || echo "Access check failed"
-      env:
-        TOKEN: ${{ steps.generate_token.outputs.token }}
-
-    - name: Configure git and npm for HTTPS
-      run: |
-        # Git設定
-        git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "ssh://git@github.com/"
-        git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "git@github.com:"
-        git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "git://github.com/"
+        # .npmrcファイルを作成してGitHub Packagesの認証を設定
+        echo "@polyrhythm-inc:registry=https://npm.pkg.github.com" > .npmrc
+        echo "//npm.pkg.github.com/:_authToken=${{ steps.app-token.outputs.token }}" >> .npmrc
         
-        # npm設定をクリア
-        npm config delete @polyrhythm-inc:registry || true
-        npm config delete //npm.pkg.github.com/:_authToken || true
-        
-        # package-lock.jsonを一時的に削除
-        rm -f package-lock.json
-        
-        echo "Git and npm config updated"
+        echo "npm config for GitHub Packages set"
 
     - name: Install dependencies
-      env:
-        GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-      run: |
-        # package.jsonを修正してHTTPSを使用
-        sed -i 's|github:Polyrhythm-Inc/nextjs-auth-client|https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/Polyrhythm-Inc/nextjs-auth-client.git|g' package.json
-        npm install
+      run: npm ci
 
     - name: Build application
       run: npm run build
