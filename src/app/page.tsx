@@ -443,7 +443,7 @@ export default function Home() {
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
                             </svg>
-                            <span className="truncate">{feedback.screenshotData.tabTitle}</span>
+                            <span className="truncate">{feedback.screenshotData?.tabTitle || 'タイトル不明'}</span>
                           </div>
                         </div>
                       ))}
