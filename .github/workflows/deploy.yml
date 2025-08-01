@@ -48,15 +48,29 @@ jobs:
       env:
         TOKEN: ${{ steps.generate_token.outputs.token }}
 
-    - name: Configure git for HTTPS
+    - name: Configure git and npm for HTTPS
       run: |
+        # Git設定
         git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "ssh://git@github.com/"
         git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "git@github.com:"
         git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "git://github.com/"
-        echo "Git config updated"
+        
+        # npm設定をクリア
+        npm config delete @polyrhythm-inc:registry || true
+        npm config delete //npm.pkg.github.com/:_authToken || true
+        
+        # package-lock.jsonを一時的に削除
+        rm -f package-lock.json
+        
+        echo "Git and npm config updated"
 
     - name: Install dependencies
-      run: npm ci
+      env:
+        GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+      run: |
+        # package.jsonを修正してHTTPSを使用
+        sed -i 's|github:Polyrhythm-Inc/nextjs-auth-client|https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/Polyrhythm-Inc/nextjs-auth-client.git|g' package.json
+        npm install
 
     - name: Build application
       run: npm run build
