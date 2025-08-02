@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // リクエストデータの検証
-    const { comment, uploadedDataId, timestamp, errorDetails } = body;
+    const { comment, uploadedDataId, timestamp, errorDetails, url } = body;
 
     if (!comment) {
       return NextResponse.json(
@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
       comment,
       screenshotDataId: validScreenshotDataId,
       timestamp: timestamp || Date.now(),
-      userAgent: request.headers.get('user-agent') || undefined
+      userAgent: request.headers.get('user-agent') || undefined,
+      url: url || undefined
     });
 
     console.log(`フィードバックを受信しました: ID ${feedbackId}, スクリーンショットデータID: ${uploadedDataId || 'なし'}`);
@@ -70,10 +71,12 @@ export async function POST(request: NextRequest) {
       const feedbackData = await getFeedbackById(feedbackId);
 
       if (feedbackData) {
-        // URLを取得（スクリーンショットデータがある場合はそこから、ない場合はerrorDetailsから）
+        // URLを取得（url > スクリーンショットデータ > errorDetailsの優先順位）
         let tabUrl: string | undefined;
 
-        if (feedbackData.screenshotData) {
+        if (feedbackData.url) {
+          tabUrl = feedbackData.url;
+        } else if (feedbackData.screenshotData) {
           tabUrl = feedbackData.screenshotData.tabUrl;
         } else if (errorDetails?.pageUrl) {
           tabUrl = errorDetails.pageUrl;
@@ -174,12 +177,16 @@ export async function POST(request: NextRequest) {
       const feedbackData = await getFeedbackById(feedbackId);
 
       if (feedbackData) {
-        // URLとタイトルを取得（スクリーンショットデータまたはエラー詳細から）
+        // URLとタイトルを取得（url > スクリーンショットデータ > エラー詳細の優先順位）
         let tabUrl = 'Unknown URL';
         let tabTitle = 'フィードバック';
         let screenshotUrl: string | undefined;
 
-        if (feedbackData.screenshotData) {
+        if (feedbackData.url) {
+          tabUrl = feedbackData.url;
+          tabTitle = feedbackData.screenshotData?.tabTitle || 'フィードバック';
+          screenshotUrl = feedbackData.screenshotData?.screenshotUrl;
+        } else if (feedbackData.screenshotData) {
           tabUrl = feedbackData.screenshotData.tabUrl;
           tabTitle = feedbackData.screenshotData.tabTitle;
           screenshotUrl = feedbackData.screenshotData.screenshotUrl;

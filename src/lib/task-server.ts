@@ -39,8 +39,9 @@ interface CreateTaskResponse {
  * フィードバックからタスクデータを作成
  */
 export function createTaskDataFromFeedback(feedback: FeedbackRecord): CreateTaskRequest {
-  const { comment, screenshotData } = feedback;
-  const tabUrl = screenshotData?.tabUrl || 'URL不明';
+  const { comment, screenshotData, url } = feedback;
+  // URLの優先順位: url > screenshotData.tabUrl
+  const tabUrl = url || screenshotData?.tabUrl || 'URL不明';
   const tabTitle = screenshotData?.tabTitle || 'ページタイトル不明';
   const screenshotUrl = screenshotData?.screenshotUrl || '';
   

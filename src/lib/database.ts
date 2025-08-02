@@ -6,6 +6,7 @@ export interface FeedbackRecord {
   screenshotDataId: string | null;
   timestamp: number;
   userAgent: string | null;
+  url: string | null;
   createdAt: Date;
   updatedAt: Date;
   screenshotData: ScreenshotDataRecord | null;
@@ -47,6 +48,7 @@ export interface FeedbackCreateDataNew {
   screenshotDataId?: string | null;
   timestamp: number;
   userAgent?: string;
+  url?: string;
 }
 
 // スクリーンショットデータの挿入
@@ -91,6 +93,7 @@ export async function insertFeedbackNew(data: FeedbackCreateDataNew): Promise<nu
         screenshotDataId: data.screenshotDataId || null,
         timestamp: Math.floor(data.timestamp / 1000), // ミリ秒を秒に変換
         userAgent: data.userAgent || null,
+        url: data.url || null,
       },
     });
 
