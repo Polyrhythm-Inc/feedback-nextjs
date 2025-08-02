@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
         if (feedbackData) {
           console.log(`タスク管理サーバへのタスク作成を開始: フィードバックID ${feedbackId}`);
 
-          const taskResult = await createTaskFromFeedback(feedbackData, apiKey);
+          const taskResult = await createTaskFromFeedback(feedbackData, apiKey, errorDetails);
 
           if (taskResult.success) {
             console.log(`タスク作成成功: フィードバックID ${feedbackId}, タスクID: ${taskResult.taskId}, URL: ${taskResult.taskUrl}`);

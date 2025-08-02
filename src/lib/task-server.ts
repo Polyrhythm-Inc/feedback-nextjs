@@ -38,10 +38,10 @@ interface CreateTaskResponse {
 /**
  * フィードバックからタスクデータを作成
  */
-export function createTaskDataFromFeedback(feedback: FeedbackRecord): CreateTaskRequest {
+export function createTaskDataFromFeedback(feedback: FeedbackRecord, errorDetails?: any): CreateTaskRequest {
   const { comment, screenshotData, url } = feedback;
-  // URLの優先順位: url > screenshotData.tabUrl
-  const tabUrl = url || screenshotData?.tabUrl || 'URL不明';
+  // URLの優先順位: url > screenshotData.tabUrl > errorDetails.pageUrl
+  const tabUrl = url || screenshotData?.tabUrl || errorDetails?.pageUrl || 'URL不明';
   const tabTitle = screenshotData?.tabTitle || 'ページタイトル不明';
   const screenshotUrl = screenshotData?.screenshotUrl || '';
   
@@ -77,10 +77,11 @@ ${new Date(feedback.timestamp * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/
  */
 export async function createTaskFromFeedback(
   feedback: FeedbackRecord,
-  apiKey: string
+  apiKey: string,
+  errorDetails?: any
 ): Promise<{ success: boolean; taskId?: number; taskUrl?: string; error?: string }> {
   try {
-    const taskData = createTaskDataFromFeedback(feedback);
+    const taskData = createTaskDataFromFeedback(feedback, errorDetails);
     
     console.log('タスク管理サーバにタスクを作成します:', {
       url: TASK_SERVER_API_URL,
