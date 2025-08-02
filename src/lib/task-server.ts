@@ -38,10 +38,10 @@ interface CreateTaskResponse {
 /**
  * フィードバックからタスクデータを作成
  */
-export function createTaskDataFromFeedback(feedback: FeedbackRecord): CreateTaskRequest {
+export function createTaskDataFromFeedback(feedback: FeedbackRecord, errorDetails?: any): CreateTaskRequest {
   const { comment, screenshotData, url } = feedback;
-  // URLの優先順位: url > screenshotData.tabUrl
-  const tabUrl = url || screenshotData?.tabUrl || 'URL不明';
+  // URLの優先順位: url > screenshotData.tabUrl > errorDetails.pageUrl
+  const tabUrl = url || screenshotData?.tabUrl || errorDetails?.pageUrl || 'URL不明';
   const tabTitle = screenshotData?.tabTitle || 'ページタイトル不明';
   const screenshotUrl = screenshotData?.screenshotUrl || '';
   
@@ -49,7 +49,7 @@ export function createTaskDataFromFeedback(feedback: FeedbackRecord): CreateTask
   const title = `[フィードバック] ${tabTitle}`;
   
   // 説明文を作成
-  const description = `## フィードバック内容
+  let description = `## フィードバック内容
 ${comment}
 
 ## ページ情報
@@ -58,10 +58,46 @@ ${comment}
 ${screenshotUrl ? `- スクリーンショット: ${screenshotUrl}` : ''}
 
 ## 受信日時
-${new Date(feedback.timestamp * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+${new Date(feedback.timestamp * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`;
 
----
-*このタスクは自動的に作成されました*`;
+  // errorDetailsがある場合は詳細情報を追加
+  if (errorDetails) {
+    description += `\n\n## エラー詳細情報`;
+    
+    if (errorDetails.source) {
+      description += `\n- ソース: ${errorDetails.source}`;
+    }
+    
+    if (errorDetails.pageUrl) {
+      description += `\n- ページURL: ${errorDetails.pageUrl}`;
+    }
+    
+    if (errorDetails.userAgent) {
+      description += `\n- ユーザーエージェント: ${errorDetails.userAgent}`;
+    }
+    
+    if (errorDetails.stack) {
+      description += `\n\n### スタックトレース\n\`\`\`\n${errorDetails.stack}\n\`\`\``;
+    }
+    
+    // その他のプロパティも含める
+    const knownProps = ['source', 'pageUrl', 'userAgent', 'stack'];
+    const otherProps = Object.keys(errorDetails).filter(key => !knownProps.includes(key));
+    
+    if (otherProps.length > 0) {
+      description += `\n\n### その他の情報`;
+      for (const prop of otherProps) {
+        const value = errorDetails[prop];
+        if (typeof value === 'object') {
+          description += `\n- ${prop}: ${JSON.stringify(value, null, 2)}`;
+        } else {
+          description += `\n- ${prop}: ${value}`;
+        }
+      }
+    }
+  }
+
+  description += `\n\n---\n*このタスクは自動的に作成されました*`;
 
   return {
     title,
@@ -77,10 +113,11 @@ ${new Date(feedback.timestamp * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/
  */
 export async function createTaskFromFeedback(
   feedback: FeedbackRecord,
-  apiKey: string
+  apiKey: string,
+  errorDetails?: any
 ): Promise<{ success: boolean; taskId?: number; taskUrl?: string; error?: string }> {
   try {
-    const taskData = createTaskDataFromFeedback(feedback);
+    const taskData = createTaskDataFromFeedback(feedback, errorDetails);
     
     console.log('タスク管理サーバにタスクを作成します:', {
       url: TASK_SERVER_API_URL,
