@@ -38,7 +38,7 @@ interface CreateTaskResponse {
 /**
  * フィードバックからタスクデータを作成
  */
-export function createTaskDataFromFeedback(feedback: FeedbackRecord, errorDetails?: any): CreateTaskRequest {
+export function createTaskDataFromFeedback(feedback: FeedbackRecord, errorDetails?: any, githubRepository?: string): CreateTaskRequest {
   const { comment, screenshotData, url } = feedback;
   // URLの優先順位: url > screenshotData.tabUrl > errorDetails.pageUrl
   const tabUrl = url || screenshotData?.tabUrl || errorDetails?.pageUrl || 'URL不明';
@@ -97,6 +97,11 @@ ${new Date(feedback.timestamp * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/
     }
   }
 
+  // GitHubリポジトリ情報を追加
+  if (githubRepository) {
+    description += `\n\n### GitHubリポジトリ\n${githubRepository}`;
+  }
+
   description += `\n\n---\n*このタスクは自動的に作成されました*`;
 
   return {
@@ -114,10 +119,11 @@ ${new Date(feedback.timestamp * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/
 export async function createTaskFromFeedback(
   feedback: FeedbackRecord,
   apiKey: string,
-  errorDetails?: any
+  errorDetails?: any,
+  githubRepository?: string
 ): Promise<{ success: boolean; taskId?: number; taskUrl?: string; error?: string }> {
   try {
-    const taskData = createTaskDataFromFeedback(feedback, errorDetails);
+    const taskData = createTaskDataFromFeedback(feedback, errorDetails, githubRepository);
     
     console.log('タスク管理サーバにタスクを作成します:', {
       url: TASK_SERVER_API_URL,

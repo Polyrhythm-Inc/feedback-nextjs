@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertFeedbackNew, getFeedbackById } from '@/lib/database';
 import { notifyFeedbackReceived, notifyGitHubIssueError } from '@/lib/slack';
-import { findProjectByUrl } from '@/lib/projects';
+import { findProjectByUrl, findProjectByGithubRepository } from '@/lib/projects';
 import { parseGitHubRepository, createGitHubIssue, createIssueDataFromFeedback } from '@/lib/github';
 import { createTaskFromFeedback, getTaskServerApiKey } from '@/lib/task-server';
 import { prisma } from '@/lib/prisma';
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // リクエストデータの検証
-    const { comment, uploadedDataId, timestamp, errorDetails, url } = body;
+    const { comment, uploadedDataId, timestamp, errorDetails, url, githubRepository } = body;
 
     if (!comment) {
       return NextResponse.json(
@@ -82,13 +82,22 @@ export async function POST(request: NextRequest) {
           tabUrl = errorDetails.pageUrl;
         }
 
+        // プロジェクトを検索（URLとgithubRepositoryの両方で試行）
+        let project = null;
+        
         if (tabUrl) {
           console.log(`GitHub issue作成を開始: フィードバックID ${feedbackId}, URL: ${tabUrl}`);
-
           // URLからプロジェクトを検索
-          const project = await findProjectByUrl(tabUrl);
+          project = await findProjectByUrl(tabUrl);
+        }
+        
+        // URLが空またはプロジェクトが見つからない場合、githubRepositoryで検索
+        if (!project && githubRepository) {
+          console.log(`GitHubリポジトリでプロジェクトを検索: ${githubRepository}`);
+          project = await findProjectByGithubRepository(githubRepository);
+        }
 
-          if (project && project.githubRepository) {
+        if (project && project.githubRepository) {
             console.log(`プロジェクトを発見: ${project.name} (${project.displayName}) - ${project.githubRepository}`);
 
             // GitHubリポジトリ情報を解析
@@ -122,11 +131,14 @@ export async function POST(request: NextRequest) {
               console.warn(`GitHubリポジトリURL解析失敗: ${project.githubRepository}`);
             }
           } else {
-            console.log(`プロジェクトが見つからないか、GitHubリポジトリが設定されていません: URL ${tabUrl}`);
+            if (tabUrl) {
+              console.log(`プロジェクトが見つからないか、GitHubリポジトリが設定されていません: URL ${tabUrl}`);
+            } else if (githubRepository) {
+              console.log(`プロジェクトが見つからないか、一致するGitHubリポジトリが設定されていません: ${githubRepository}`);
+            } else {
+              console.log(`GitHub issue作成スキップ: URLもGitHubリポジトリも指定されていません (フィードバックID ${feedbackId})`);
+            }
           }
-        } else {
-          console.log(`GitHub issue作成スキップ: URLが見つかりません (フィードバックID ${feedbackId})`);
-        }
       } else {
         console.warn(`フィードバックデータが見つかりません: ID ${feedbackId}`);
       }
@@ -153,7 +165,7 @@ export async function POST(request: NextRequest) {
         if (feedbackData) {
           console.log(`タスク管理サーバへのタスク作成を開始: フィードバックID ${feedbackId}`);
 
-          const taskResult = await createTaskFromFeedback(feedbackData, apiKey, errorDetails);
+          const taskResult = await createTaskFromFeedback(feedbackData, apiKey, errorDetails, githubRepository);
 
           if (taskResult.success) {
             console.log(`タスク作成成功: フィードバックID ${feedbackId}, タスクID: ${taskResult.taskId}, URL: ${taskResult.taskUrl}`);
@@ -204,7 +216,8 @@ export async function POST(request: NextRequest) {
           userAgent: feedbackData.userAgent || 'Unknown',
           screenshotUrl,
           screenshotDataId: uploadedDataId,
-          githubIssueUrl: githubIssueUrl // GitHub Issue URLを追加
+          githubIssueUrl: githubIssueUrl, // GitHub Issue URLを追加
+          githubRepository: githubRepository // GitHubリポジトリを追加
         });
 
         if (notificationSent) {

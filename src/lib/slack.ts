@@ -30,6 +30,7 @@ export interface FeedbackNotificationData {
     screenshotUrl?: string;
     screenshotDataId?: string;
     githubIssueUrl?: string;
+    githubRepository?: string;
 }
 
 /**
@@ -129,6 +130,17 @@ export function createFeedbackNotificationMessage(data: FeedbackNotificationData
             }
         ]
     };
+
+    // GitHubリポジトリがある場合は追加
+    if (data.githubRepository) {
+        message.blocks!.push({
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*GitHubリポジトリ:*\n${data.githubRepository}`
+            }
+        });
+    }
 
     // GitHub Issue URLがある場合は追加
     if (data.githubIssueUrl) {

@@ -1,0 +1,762 @@
+openapi: 3.0.3
+info:
+  title: Feedback API
+  description: |
+    フィードバックシステムのAPI仕様書です。
+    Chrome拡張機能からのフィードバック送信、スクリーンショットのアップロード、
+    エラーログの記録などの機能を提供します。
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: dev@porhy.com
+
+servers:
+  - url: https://feedback-suite.polyrhythm.tokyo
+    description: Production server
+
+tags:
+  - name: feedback
+    description: フィードバックの管理
+  - name: screenshot
+    description: スクリーンショットとDOMツリーの管理
+  - name: logs
+    description: エラーログの管理
+  - name: uploads
+    description: ファイルアップロード
+  - name: s3
+    description: S3関連の操作
+
+paths:
+  /api/feedback:
+    post:
+      tags:
+        - feedback
+      summary: フィードバックを送信
+      description: Chrome拡張機能からフィードバックを受信し、必要に応じてGitHub Issueやタスクサーバーにもデータを送信します
+      operationId: createFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackCreateRequest'
+      responses:
+        '200':
+          description: フィードバックを正常に受信しました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackCreateResponse'
+        '400':
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    options:
+      tags:
+        - feedback
+      summary: CORS プリフライトリクエスト
+      responses:
+        '200':
+          description: OK
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+                example: '*'
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+                example: 'GET, POST, PUT, DELETE, OPTIONS'
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+                example: 'Content-Type, Authorization'
+
+  /api/feedback/list:
+    get:
+      tags:
+        - feedback
+      summary: フィードバック一覧を取得
+      description: 保存されているすべてのフィードバックを取得します
+      operationId: listFeedback
+      responses:
+        '200':
+          description: フィードバック一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackListResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/feedback/{id}:
+    delete:
+      tags:
+        - feedback
+      summary: フィードバックを削除
+      description: 指定されたIDのフィードバックを削除します
+      operationId: deleteFeedback
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: フィードバックID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: フィードバックを削除しました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 無効なIDです
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: フィードバックが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    patch:
+      tags:
+        - feedback
+      summary: フィードバックのコメントを更新
+      description: 指定されたIDのフィードバックのコメントを更新します
+      operationId: updateFeedbackComment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: フィードバックID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - comment
+              properties:
+                comment:
+                  type: string
+                  description: 更新するコメント
+      responses:
+        '200':
+          description: コメントを更新しました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 無効なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: フィードバックが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/feedback/{id}/create-task:
+    post:
+      tags:
+        - feedback
+      summary: フィードバックからタスクを作成
+      description: 指定されたフィードバックIDからタスク管理サーバーにタスクを作成します
+      operationId: createTaskFromFeedback
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: フィードバックID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: タスクが作成されました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCreateResponse'
+        '400':
+          description: 無効なフィードバックID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: フィードバックまたはスクリーンショットデータが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: タスク管理サーバーのAPIキーが設定されていません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    options:
+      tags:
+        - feedback
+      summary: CORS プリフライトリクエスト
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+
+  /api/feedback/upload-screenshot-dom:
+    post:
+      tags:
+        - screenshot
+      summary: スクリーンショットとDOMツリーをアップロード
+      description: Base64エンコードされたスクリーンショットとDOMツリーをアップロードし、S3に保存します
+      operationId: uploadScreenshotDom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScreenshotUploadRequest'
+      responses:
+        '200':
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScreenshotUploadResponse'
+        '400':
+          description: 必須項目が不足しています
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    options:
+      tags:
+        - screenshot
+      summary: CORS プリフライトリクエスト
+      responses:
+        '200':
+          description: OK
+
+  /api/logs:
+    post:
+      tags:
+        - logs
+      summary: エラーログを記録
+      description: Chrome拡張機能や各種システムからのエラーログを記録します
+      operationId: createLog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogCreateRequest'
+      responses:
+        '200':
+          description: エラーログを記録しました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogCreateResponse'
+        '400':
+          description: 必須項目が不足しています
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    get:
+      tags:
+        - logs
+      summary: エラーログ一覧を取得
+      description: 記録されているエラーログを取得します
+      operationId: listLogs
+      parameters:
+        - name: limit
+          in: query
+          description: 取得する最大件数
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 1000
+        - name: source
+          in: query
+          description: ログのソースでフィルタリング
+          schema:
+            type: string
+            enum: ['chrome-extension', 's3-upload', 'api', 'unknown']
+        - name: level
+          in: query
+          description: ログレベルでフィルタリング
+          schema:
+            type: string
+            enum: ['error', 'warning', 'info']
+      responses:
+        '200':
+          description: エラーログ一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogListResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    options:
+      tags:
+        - logs
+      summary: CORS プリフライトリクエスト
+      responses:
+        '200':
+          description: OK
+
+  /api/s3/presigned-url:
+    post:
+      tags:
+        - s3
+      summary: S3アップロード用の署名付きURLを生成
+      description: S3にファイルをアップロードするための署名付きURLを生成します
+      operationId: generatePresignedUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresignedUrlRequest'
+      responses:
+        '200':
+          description: 署名付きURLを生成しました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignedUrlResponse'
+        '400':
+          description: 無効なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/uploads/local:
+    post:
+      tags:
+        - uploads
+      summary: ローカルファイルアップロード
+      description: ファイルをローカルサーバーにアップロードします（開発環境用）
+      operationId: uploadLocal
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: アップロードするファイル
+      responses:
+        '200':
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalUploadResponse'
+        '400':
+          description: ファイルがありません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    FeedbackCreateRequest:
+      type: object
+      required:
+        - comment
+      properties:
+        comment:
+          type: string
+          description: フィードバックコメント
+        uploadedDataId:
+          type: string
+          description: アップロード済みのスクリーンショットデータID
+        timestamp:
+          type: integer
+          format: int64
+          description: タイムスタンプ（ミリ秒）
+        url:
+          type: string
+          description: フィードバックが送信されたページのURL
+        githubRepository:
+          type: string
+          description: 関連するGitHubリポジトリ（例：owner/repo）
+        errorDetails:
+          type: object
+          description: エラーの詳細情報。pageUrlを含む任意のキー・値を受け付けます
+          additionalProperties: true
+          properties:
+            pageUrl:
+              type: string
+              description: エラーが発生したページのURL
+
+    FeedbackCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        id:
+          type: integer
+          description: 作成されたフィードバックのID
+        message:
+          type: string
+          example: フィードバックを受信しました
+
+    FeedbackListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        feedbacks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feedback'
+        count:
+          type: integer
+          description: フィードバックの総数
+        stats:
+          type: object
+          description: 統計情報
+
+    Feedback:
+      type: object
+      properties:
+        id:
+          type: integer
+        comment:
+          type: string
+        screenshotDataId:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          description: タイムスタンプ（文字列形式）
+        userAgent:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        screenshotData:
+          $ref: '#/components/schemas/ScreenshotData'
+          nullable: true
+
+    ScreenshotData:
+      type: object
+      properties:
+        id:
+          type: string
+        screenshotUrl:
+          type: string
+        domTree:
+          type: string
+        tabUrl:
+          type: string
+        tabTitle:
+          type: string
+        timestamp:
+          type: integer
+        pageInfo:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TaskCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        taskId:
+          type: string
+          description: 作成されたタスクのID
+        taskUrl:
+          type: string
+          description: タスクの詳細URL
+        message:
+          type: string
+          example: タスクが作成されました
+
+    ScreenshotUploadRequest:
+      type: object
+      required:
+        - screenshot
+        - domTree
+        - pageInfo
+        - timestamp
+      properties:
+        screenshot:
+          type: string
+          description: Base64エンコードされたスクリーンショット画像
+        domTree:
+          type: string
+          description: DOMツリーのJSON文字列
+        pageInfo:
+          type: object
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              description: ページのURL
+            title:
+              type: string
+              description: ページのタイトル
+        timestamp:
+          type: integer
+          format: int64
+          description: タイムスタンプ（ミリ秒）
+
+    ScreenshotUploadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        id:
+          type: string
+          description: 保存されたスクリーンショットデータのID
+        message:
+          type: string
+          example: スクリーンショットとDOMツリーをアップロードしました
+
+    LogCreateRequest:
+      type: object
+      required:
+        - source
+        - level
+        - message
+      properties:
+        source:
+          type: string
+          enum: ['chrome-extension', 's3-upload', 'api', 'unknown']
+          description: ログのソース
+        level:
+          type: string
+          enum: ['error', 'warning', 'info']
+          description: ログレベル
+        message:
+          type: string
+          description: ログメッセージ
+        details:
+          type: object
+          description: 詳細情報
+        url:
+          type: string
+          description: 関連するURL
+        userAgent:
+          type: string
+          description: ユーザーエージェント
+
+    LogCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        id:
+          type: string
+          description: 記録されたログのID
+        message:
+          type: string
+          example: エラーログを記録しました
+
+    LogListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorLog'
+        totalCount:
+          type: integer
+          description: フィルタリング後の総件数
+        limit:
+          type: integer
+          description: 取得件数の上限
+
+    ErrorLog:
+      type: object
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+          enum: ['chrome-extension', 's3-upload', 'api', 'unknown']
+        level:
+          type: string
+          enum: ['error', 'warning', 'info']
+        message:
+          type: string
+        details:
+          type: object
+        url:
+          type: string
+          nullable: true
+        userAgent:
+          type: string
+          nullable: true
+        timestamp:
+          type: integer
+          format: int64
+
+    PresignedUrlRequest:
+      type: object
+      required:
+        - fileName
+        - contentType
+      properties:
+        fileName:
+          type: string
+          description: アップロードするファイル名
+        contentType:
+          type: string
+          description: ファイルのContent-Type
+
+    PresignedUrlResponse:
+      type: object
+      properties:
+        uploadUrl:
+          type: string
+          description: アップロード用の署名付きURL
+        fields:
+          type: object
+          description: アップロード時に送信するフィールド
+        fileUrl:
+          type: string
+          description: アップロード完了後のファイルURL
+
+    LocalUploadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        filePath:
+          type: string
+          description: アップロードされたファイルのパス
+        publicUrl:
+          type: string
+          description: ファイルの公開URL
+        fileName:
+          type: string
+          description: ファイル名
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: エラーメッセージ
+        details:
+          type: string
+          description: エラーの詳細情報
+        success:
+          type: boolean
+          example: false

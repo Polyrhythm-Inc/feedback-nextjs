@@ -155,4 +155,36 @@ export async function findProjectByUrl(url: string): Promise<Project | null> {
         console.error('Error finding project by URL:', error);
         return null;
     }
+}
+
+/**
+ * GitHubリポジトリからプロジェクトを検索
+ */
+export async function findProjectByGithubRepository(githubRepository: string): Promise<Project | null> {
+    try {
+        if (!githubRepository) {
+            return null;
+        }
+
+        const projects = await fetchProjects();
+        
+        console.log(`Searching for project matching GitHub repository: ${githubRepository}`);
+
+        // GitHubリポジトリで検索
+        const project = projects.find(p => 
+            p.githubRepository && 
+            p.githubRepository.toLowerCase() === githubRepository.toLowerCase()
+        );
+
+        if (project) {
+            console.log(`Found matching project: ${project.name} (${project.displayName}) for repository ${githubRepository}`);
+            return project;
+        }
+
+        console.warn(`No project found for GitHub repository: ${githubRepository}`);
+        return null;
+    } catch (error) {
+        console.error('Error finding project by GitHub repository:', error);
+        return null;
+    }
 } 
