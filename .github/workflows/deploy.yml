@@ -65,6 +65,7 @@ jobs:
         echo "/usr/local/bin" >> $GITHUB_PATH
 
     - name: Deploy to Heroku
+      id: deploy
       run: |
         echo "machine api.heroku.com" >> ~/.netrc
         echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
@@ -163,35 +164,42 @@ jobs:
             }
           }'
 
-    - name: Send error details to Feedback API
+    - name: Send error feedback to API
       if: failure()
       run: |
         # エラー詳細を収集
-        ERROR_MESSAGE="GitHub Actions deployment failed for feedback-suite.polyrhythm.tokyo"
-        WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        ERROR_MESSAGE="GitHub Actions deployment failed"
+        if [ -n "${{ steps.deploy.outputs.error }}" ]; then
+          ERROR_MESSAGE="${{ steps.deploy.outputs.error }}"
+        fi
         
-        # フィードバックAPIにエラーを送信
-        curl -X POST "https://feedback-suite.polyrhythm.tokyo/api/feedback" \
+        # JSONペイロードを作成
+        PAYLOAD=$(cat <<EOF
+        {
+          "comment": "Heroku deployment failed via GitHub Actions. 詳細はGithub Actionsの実行URLにあるIDについて、ghコマンドで参照してください",
+          "githubRepository": "${{ github.repository }}",
+          "timestamp": $(date +%s)000,
+          "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+          "errorDetails": {
+            "pageUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "workflow": "${{ github.workflow }}",
+            "job": "${{ github.job }}",
+            "branch": "${{ github.ref_name }}",
+            "commit": "${{ github.sha }}",
+            "runId": "${{ github.run_id }}",
+            "runNumber": "${{ github.run_number }}",
+            "actor": "${{ github.actor }}",
+            "errorMessage": "$ERROR_MESSAGE"
+          }
+        }
+        EOF
+        )
+        
+        # APIにPOSTリクエストを送信
+        curl -X POST https://feedback-suite.polyrhythm.tokyo/api/feedback \
           -H "Content-Type: application/json" \
-          -d '{
-            "comment": "[自動エラー報告] '"$ERROR_MESSAGE"'",
-            "timestamp": '"$(date +%s)000"',
-            "errorDetails": {
-              "source": "github-actions-deploy",
-              "repository": "'"${{ github.repository }}"'",
-              "workflow": "Deploy to Heroku",
-              "workflowRunId": "'"${{ github.run_id }}"'",
-              "jobId": "'"${{ github.job }}"'",
-              "branch": "'"${{ github.ref_name }}"'",
-              "commitHash": "'"${{ github.sha }}"'",
-              "actor": "'"${{ github.actor }}"'",
-              "environment": "'"${{ github.event.inputs.environment || 'production' }}"'",
-              "platform": "heroku",
-              "appName": "'"${{ secrets.HEROKU_APP_NAME }}"'",
-              "workflowUrl": "'"$WORKFLOW_URL"'",
-              "failedStep": "Unknown"
-            }
-          }' || echo "Warning: Failed to send error to Feedback API"
+          -d "$PAYLOAD" \
+          --fail-with-body || echo "Failed to send feedback to API"
 
     - name: Notify deployment status
       if: always()
