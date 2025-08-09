@@ -1,4 +1,5 @@
 import { FeedbackRecord } from '@/lib/database';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // タスク管理サーバのAPIエンドポイント
 const TASK_SERVER_API_URL = 'https://tasks.polyrhythm.tokyo/api/external/tasks';
@@ -36,17 +37,49 @@ interface CreateTaskResponse {
 }
 
 /**
+ * コメントを要約してタスクタイトルを生成
+ */
+async function generateTaskTitle(comment: string): Promise<string> {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn('Gemini APIキーが設定されていません。フォールバック処理を使用します。');
+      return `[FB] ${comment.slice(0, 50)}${comment.length > 50 ? '...' : ''}`;
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const prompt = `以下のフィードバックコメントを15文字以内で要約してください。要約のみを返してください。
+
+コメント: ${comment}`;
+    
+    const result = await model.generateContent(prompt);
+    const summary = result.response.text().trim();
+    
+    // 要約が長すぎる場合は切り詰める
+    const truncatedSummary = summary.length > 30 ? summary.slice(0, 30) + '...' : summary;
+    
+    return `[FB] ${truncatedSummary}`;
+  } catch (error) {
+    console.error('Gemini APIエラー:', error);
+    // エラー時はコメントの最初の50文字を使用
+    return `[FB] ${comment.slice(0, 50)}${comment.length > 50 ? '...' : ''}`;
+  }
+}
+
+/**
  * フィードバックからタスクデータを作成
  */
-export function createTaskDataFromFeedback(feedback: FeedbackRecord, errorDetails?: any, githubRepository?: string): CreateTaskRequest {
+export async function createTaskDataFromFeedback(feedback: FeedbackRecord, errorDetails?: any, githubRepository?: string): Promise<CreateTaskRequest> {
   const { comment, screenshotData, url } = feedback;
   // URLの優先順位: url > screenshotData.tabUrl > errorDetails.pageUrl
   const tabUrl = url || screenshotData?.tabUrl || errorDetails?.pageUrl || 'URL不明';
   const tabTitle = screenshotData?.tabTitle || 'ページタイトル不明';
   const screenshotUrl = screenshotData?.screenshotUrl || '';
   
-  // タイトルを作成（URLから抽出した情報を含む）
-  const title = `[フィードバック] ${tabTitle}`;
+  // タイトルを生成（コメントの要約を使用）
+  const title = await generateTaskTitle(comment);
   
   // 説明文を作成
   let description = `## フィードバック内容
@@ -123,7 +156,7 @@ export async function createTaskFromFeedback(
   githubRepository?: string
 ): Promise<{ success: boolean; taskId?: number; taskUrl?: string; error?: string }> {
   try {
-    const taskData = createTaskDataFromFeedback(feedback, errorDetails, githubRepository);
+    const taskData = await createTaskDataFromFeedback(feedback, errorDetails, githubRepository);
     
     console.log('タスク管理サーバにタスクを作成します:', {
       url: TASK_SERVER_API_URL,
