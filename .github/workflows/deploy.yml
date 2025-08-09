@@ -67,15 +67,22 @@ jobs:
     - name: Deploy to Heroku
       id: deploy
       run: |
-        echo "machine api.heroku.com" >> ~/.netrc
-        echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
-        echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
-        echo "machine git.heroku.com" >> ~/.netrc
-        echo "  login ${{ secrets.HEROKU_EMAIL }}" >> ~/.netrc
-        echo "  password ${{ secrets.HEROKU_API_KEY }}" >> ~/.netrc
+        # Set up Heroku API key authentication
+        cat > ~/.netrc << EOF
+        machine api.heroku.com
+          login ${{ secrets.HEROKU_EMAIL }}
+          password ${{ secrets.HEROKU_API_KEY }}
+        machine git.heroku.com
+          login ${{ secrets.HEROKU_EMAIL }}
+          password ${{ secrets.HEROKU_API_KEY }}
+        EOF
         chmod 600 ~/.netrc
         
-        heroku git:remote --app ${{ secrets.HEROKU_APP_NAME }}
+        # Set HEROKU_API_KEY environment variable
+        export HEROKU_API_KEY=${{ secrets.HEROKU_API_KEY }}
+        
+        # Add Heroku remote
+        git remote add heroku https://git.heroku.com/${{ secrets.HEROKU_APP_NAME }}.git || true
         
         # Set buildpack (ignore if already set)
         heroku buildpacks:set heroku/nodejs --app ${{ secrets.HEROKU_APP_NAME }} || true
@@ -88,6 +95,9 @@ jobs:
 
     - name: Run database migrations on Heroku
       run: |
+        # Set HEROKU_API_KEY environment variable
+        export HEROKU_API_KEY=${{ secrets.HEROKU_API_KEY }}
+        
         echo "Waiting for deployment to complete..."
         sleep 30
         
