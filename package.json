@@ -31,6 +31,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.627.0",
     "@aws-sdk/s3-request-presigner": "^3.627.0",
+    "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^22.0.0",
     "@polyrhythm-inc/nextjs-auth-client": "*",
     "@prisma/client": "^6.10.0",
