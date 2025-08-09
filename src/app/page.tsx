@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { User, checkAuthStatus, getClientLoginUrl } from '@polyrhythm-inc/nextjs-auth-client';
+import Link from 'next/link';
 
 interface ScreenshotData {
   id: string;
@@ -417,33 +418,47 @@ export default function Home() {
                       {feedbacks.map((feedback) => (
                         <div
                           key={feedback.id}
-                          onClick={() => setSelectedFeedback(feedback)}
-                          className={`group p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedFeedback?.id === feedback.id
-                            ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                            }`}
+                          className="group"
                         >
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${selectedFeedback?.id === feedback.id
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
-                                }`}>
-                                #{feedback.id}
+                          <div
+                            onClick={() => setSelectedFeedback(feedback)}
+                            className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selectedFeedback?.id === feedback.id
+                              ? 'border-blue-500 bg-blue-50 shadow-md'
+                              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                              }`}
+                          >
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${selectedFeedback?.id === feedback.id
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
+                                  }`}>
+                                  #{feedback.id}
+                                </span>
+                                <Link
+                                  href={`/feedback/${feedback.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                  詳細
+                                </Link>
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                {formatDate(feedback.timestamp)}
                               </span>
                             </div>
-                            <span className="text-xs text-gray-500">
-                              {formatDate(feedback.timestamp)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-900 line-clamp-2 mb-3 leading-relaxed">
-                            {feedback.comment}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
-                            </svg>
-                            <span className="truncate">{feedback.screenshotData?.tabTitle || 'タイトル不明'}</span>
+                            <p className="text-sm text-gray-900 line-clamp-2 mb-3 leading-relaxed">
+                              {feedback.comment}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
+                              </svg>
+                              <span className="truncate">{feedback.screenshotData?.tabTitle || 'タイトル不明'}</span>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -634,6 +649,7 @@ export default function Home() {
                           スクリーンショット
                         </h3>
                         <div className="bg-gray-50 rounded-lg p-4">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={selectedFeedback.screenshotData?.screenshotUrl || ''}
                             alt="スクリーンショット"
