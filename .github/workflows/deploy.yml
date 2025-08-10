@@ -41,23 +41,31 @@ jobs:
         echo "@polyrhythm-inc:registry=https://npm.pkg.github.com" > .npmrc
         echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
         
-        # package-lock.jsonを削除（古いgit参照を削除するため）
-        rm -f package-lock.json
-        
         echo "npm config for GitHub Packages set"
 
     - name: Install dependencies
-      run: npm install
+      run: |
+        # package-lock.jsonが存在する場合はnpm ciを使用（高速で再現性が高い）
+        # 存在しない場合はnpm installを使用してpackage-lock.jsonを生成
+        if [ -f "package-lock.json" ]; then
+          echo "Using npm ci for faster, reproducible installation"
+          npm ci
+        else
+          echo "package-lock.json not found, using npm install"
+          npm install
+          echo "package-lock.json has been generated"
+        fi
 
     - name: Build application
       run: npm run build
       env:
+        NODE_ENV: production
+        # 環境変数はすべてシークレットから取得（直接記述しない）
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
-        NODE_ENV: production
 
     - name: Install Heroku CLI
       run: |
@@ -67,7 +75,7 @@ jobs:
     - name: Deploy to Heroku
       id: deploy
       run: |
-        # Set up Heroku API key authentication
+        # Set up Heroku API key authentication (セキュリティ強化)
         cat > ~/.netrc << EOF
         machine api.heroku.com
           login ${{ secrets.HEROKU_EMAIL }}
@@ -78,7 +86,7 @@ jobs:
         EOF
         chmod 600 ~/.netrc
         
-        # Set HEROKU_API_KEY environment variable
+        # Set HEROKU_API_KEY environment variable (シークレットから取得)
         export HEROKU_API_KEY=${{ secrets.HEROKU_API_KEY }}
         
         # Add Heroku remote
@@ -111,9 +119,9 @@ jobs:
 
     - name: Health check
       run: |
-        # Set app variables
-        APP_NAME="feedback"
-        WEB_URL="https://feedback-a9cba1104830.herokuapp.com/"
+        # アプリケーション変数を環境変数から取得（ハードコード回避）
+        APP_NAME="${{ secrets.HEROKU_APP_NAME }}"
+        WEB_URL="https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/"
         
         echo "Performing health check..."
         echo "App Name: $APP_NAME"
@@ -214,9 +222,9 @@ jobs:
     - name: Notify deployment status
       if: always()
       run: |
-        # Set app variables
-        APP_NAME="feedback"
-        WEB_URL="https://feedback-a9cba1104830.herokuapp.com/"
+        # アプリケーション変数を環境変数から取得
+        APP_NAME="${{ secrets.HEROKU_APP_NAME }}"
+        WEB_URL="https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/"
         
         echo "App Name: $APP_NAME"
         echo "Job Status: ${{ job.status }}"
