@@ -121,7 +121,7 @@ jobs:
       run: |
         # アプリケーション変数を環境変数から取得（ハードコード回避）
         APP_NAME="${{ secrets.HEROKU_APP_NAME }}"
-        WEB_URL="https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/"
+        WEB_URL="https://feedback-suite.polyrhythm.tokyo/api/health"
         
         echo "Performing health check..."
         echo "App Name: $APP_NAME"
@@ -152,7 +152,7 @@ jobs:
               "actor": "${{ github.actor }}",
               "platform": "heroku",
               "appName": "${{ secrets.HEROKU_APP_NAME }}",
-              "deploymentUrl": "https://feedback-a9cba1104830.herokuapp.com"
+              "deploymentUrl": "https://feedback-suite.polyrhythm.tokyo"
             }
           }'
 
@@ -276,7 +276,7 @@ jobs:
                   },
                   {
                     "type": "mrkdwn",
-                    "text": "*URL:*\n<https://feedback-a9cba1104830.herokuapp.com|アプリケーションを開く>"
+                    "text": "*URL:*\n<https://feedback-suite.polyrhythm.tokyo|アプリケーションを開く>"
                   }
                 ]
               },
