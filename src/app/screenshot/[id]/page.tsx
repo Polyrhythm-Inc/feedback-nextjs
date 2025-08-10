@@ -196,7 +196,7 @@ export default function ScreenshotDetailPage() {
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="フィードバックやご意見をお聞かせください..."
                   disabled={isSubmitting}
                   required
