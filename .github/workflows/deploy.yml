@@ -29,44 +29,6 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    - name: Configure npm for GitHub Packages
-      run: |
-        # .npmrcファイルを作成してGitHub Packagesの認証を設定
-        echo "@polyrhythm-inc:registry=https://npm.pkg.github.com" > .npmrc
-        echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
-        
-        echo "npm config for GitHub Packages set"
-
-    - name: Install dependencies
-      run: |
-        # package-lock.jsonが存在する場合はnpm ciを使用（高速で再現性が高い）
-        # 存在しない場合はnpm installを使用してpackage-lock.jsonを生成
-        if [ -f "package-lock.json" ]; then
-          echo "Using npm ci for faster, reproducible installation"
-          npm ci
-        else
-          echo "package-lock.json not found, using npm install"
-          npm install
-          echo "package-lock.json has been generated"
-        fi
-
-    - name: Build application
-      run: npm run build
-      env:
-        NODE_ENV: production
-        # 環境変数はすべてシークレットから取得（直接記述しない）
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
-
     - name: Install Heroku CLI
       run: |
         curl https://cli-assets.heroku.com/install.sh | sh
