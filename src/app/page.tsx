@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { User, checkAuthStatus, getClientLoginUrl } from '@polyrhythm-inc/nextjs-auth-client';
 import Link from 'next/link';
 
@@ -53,11 +53,16 @@ export default function Home() {
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [editedComment, setEditedComment] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
+  // ページネーション状態
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalFeedbacks, setTotalFeedbacks] = useState(0);
+  const [pageSize] = useState(50);
 
   // フィードバック一覧の取得
-  const fetchFeedbacks = async () => {
+  const fetchFeedbacks = useCallback(async (page: number = 1) => {
     try {
-      const response = await fetch('/api/feedback/list');
+      const response = await fetch(`/api/feedback/list?page=${page}&limit=${pageSize}`);
 
       if (!response.ok) {
         throw new Error(`フィードバック取得エラー: ${response.status}`);
@@ -67,6 +72,9 @@ export default function Home() {
 
       if (data.success && Array.isArray(data.feedbacks)) {
         setFeedbacks(data.feedbacks);
+        setCurrentPage(data.page || 1);
+        setTotalPages(data.totalPages || 1);
+        setTotalFeedbacks(data.total || 0);
       } else {
         throw new Error('フィードバックデータの形式が不正です');
       }
@@ -75,7 +83,7 @@ export default function Home() {
       setError(errorMessage);
       console.error('フィードバック取得エラー:', err);
     }
-  };
+  }, [pageSize]);
 
   // エラーログ一覧の取得
   const fetchErrorLogs = async () => {
@@ -177,8 +185,8 @@ export default function Home() {
         throw new Error('コメントの更新に失敗しました');
       }
 
-      // 更新成功後、フィードバックリストを再取得
-      await fetchFeedbacks();
+      // 更新成功後、現在のページのフィードバックリストを再取得
+      await fetchFeedbacks(currentPage);
       
       // 選択中のフィードバックを更新（コメントを即座に反映）
       setSelectedFeedback({ ...selectedFeedback, comment: editedComment });
@@ -202,7 +210,7 @@ export default function Home() {
           setUser(userData);
           // 認証成功後にデータを読み込み
           setLoading(true);
-          await Promise.all([fetchFeedbacks(), fetchErrorLogs()]);
+          await Promise.all([fetchFeedbacks(1), fetchErrorLogs()]);
           setLoading(false);
         } else {
           // 未認証の場合、ログイン画面にリダイレクト
@@ -220,7 +228,7 @@ export default function Home() {
     };
 
     validateAuth();
-  }, []);
+  }, [fetchFeedbacks]);
 
   const formatDate = (timestamp: string | number) => {
     // timestampは秒単位で保存されているので、ミリ秒に変換
@@ -347,7 +355,7 @@ export default function Home() {
               onChange={(e) => setActiveTab(e.target.value as 'feedback' | 'logs')}
               className="block w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="feedback">📝 フィードバック ({feedbacks.length})</option>
+              <option value="feedback">📝 フィードバック ({totalFeedbacks || feedbacks.length})</option>
               <option value="logs">🔍 エラーログ ({errorLogs.length})</option>
             </select>
           </div>
@@ -365,7 +373,7 @@ export default function Home() {
                 </svg>
                 フィードバック
                 <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                  {feedbacks.length}
+                  {totalFeedbacks || feedbacks.length}
                 </span>
               </button>
               <button
@@ -394,12 +402,17 @@ export default function Home() {
             <div className="xl:col-span-1">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
-                    フィードバック一覧
-                  </h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                      </svg>
+                      フィードバック一覧
+                    </h2>
+                    <span className="text-sm text-gray-500">
+                      {totalFeedbacks > 0 && `全${totalFeedbacks}件`}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="p-6">
@@ -462,6 +475,49 @@ export default function Home() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                  
+                  {/* ページネーション */}
+                  {totalPages > 1 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          const newPage = Math.max(1, currentPage - 1);
+                          setCurrentPage(newPage);
+                          fetchFeedbacks(newPage);
+                        }}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 text-sm font-medium rounded-md ${
+                          currentPage === 1
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                        }`}
+                      >
+                        前へ
+                      </button>
+                      
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <span>{currentPage}</span>
+                        <span>/</span>
+                        <span>{totalPages}</span>
+                      </div>
+                      
+                      <button
+                        onClick={() => {
+                          const newPage = Math.min(totalPages, currentPage + 1);
+                          setCurrentPage(newPage);
+                          fetchFeedbacks(newPage);
+                        }}
+                        disabled={currentPage === totalPages}
+                        className={`px-3 py-1 text-sm font-medium rounded-md ${
+                          currentPage === totalPages
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                        }`}
+                      >
+                        次へ
+                      </button>
                     </div>
                   )}
                 </div>

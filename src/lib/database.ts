@@ -125,6 +125,47 @@ export async function getAllFeedback(): Promise<FeedbackRecord[]> {
   }
 }
 
+// ページネーション付きフィードバック取得
+export async function getPaginatedFeedback(page: number = 1, limit: number = 50): Promise<{
+  feedbacks: FeedbackRecord[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> {
+  try {
+    const skip = (page - 1) * limit;
+
+    // 総件数を取得
+    const total = await prisma.feedback.count();
+
+    // ページネーションしたデータを取得
+    const feedbacks = await prisma.feedback.findMany({
+      include: {
+        screenshotData: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip,
+      take: limit
+    });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      feedbacks,
+      total,
+      page,
+      limit,
+      totalPages
+    };
+  } catch (error) {
+    console.error('ページネーション付きフィードバック取得エラー:', error);
+    throw new Error('フィードバックの取得に失敗しました');
+  }
+}
+
 // IDによるフィードバック取得（スクリーンショットデータを含む）
 export async function getFeedbackById(id: number): Promise<FeedbackRecord | null> {
   try {
