@@ -49,6 +49,7 @@ export interface FeedbackCreateDataNew {
   timestamp: number;
   userAgent?: string;
   url?: string;
+  userName?: string;
 }
 
 // スクリーンショットデータの挿入
@@ -94,6 +95,7 @@ export async function insertFeedbackNew(data: FeedbackCreateDataNew): Promise<nu
         timestamp: Math.floor(data.timestamp / 1000), // ミリ秒を秒に変換
         userAgent: data.userAgent || null,
         url: data.url || null,
+        userName: data.userName || null,
       },
     });
 

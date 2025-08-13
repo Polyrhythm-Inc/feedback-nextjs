@@ -5,6 +5,7 @@ import { findProjectByUrl, findProjectByGithubRepository } from '@/lib/projects'
 import { parseGitHubRepository, createGitHubIssue, createIssueDataFromFeedback } from '@/lib/github';
 import { createTaskFromFeedback, getTaskServerApiKey } from '@/lib/task-server';
 import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/auth';
 
 // CORS対応のヘッダー
 const corsHeaders = {
@@ -16,6 +17,10 @@ const corsHeaders = {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Bearerトークンまたはクッキーから認証ユーザー情報を取得
+    const authenticatedUser = await getAuthenticatedUser(request);
+    const userName = authenticatedUser?.name || authenticatedUser?.email;
 
     // リクエストデータの検証
     const { comment, uploadedDataId, timestamp, errorDetails, url, githubRepository } = body;
@@ -57,7 +62,8 @@ export async function POST(request: NextRequest) {
       screenshotDataId: validScreenshotDataId,
       timestamp: timestamp || Date.now(),
       userAgent: request.headers.get('user-agent') || undefined,
-      url: url || undefined
+      url: url || undefined,
+      userName: userName || undefined
     });
 
     console.log(`フィードバックを受信しました: ID ${feedbackId}, スクリーンショットデータID: ${uploadedDataId || 'なし'}`);
@@ -110,7 +116,8 @@ export async function POST(request: NextRequest) {
                 comment: feedbackData.comment,
                 screenshotData: feedbackData.screenshotData,
                 userAgent: feedbackData.userAgent,
-                timestamp: feedbackData.timestamp
+                timestamp: feedbackData.timestamp,
+                userName: userName
               });
               const result = await createGitHubIssue(repository, issueData);
 
@@ -165,7 +172,7 @@ export async function POST(request: NextRequest) {
         if (feedbackData) {
           console.log(`タスク管理サーバへのタスク作成を開始: フィードバックID ${feedbackId}`);
 
-          const taskResult = await createTaskFromFeedback(feedbackData, apiKey, errorDetails, githubRepository);
+          const taskResult = await createTaskFromFeedback(feedbackData, apiKey, errorDetails, githubRepository, userName);
 
           if (taskResult.success) {
             console.log(`タスク作成成功: フィードバックID ${feedbackId}, タスクID: ${taskResult.taskId}, URL: ${taskResult.taskUrl}`);

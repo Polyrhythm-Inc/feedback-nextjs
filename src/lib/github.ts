@@ -97,6 +97,7 @@ export function createIssueDataFromFeedback(feedback: {
     } | null;
     userAgent: string | null;
     timestamp: number;
+    userName?: string | null;
 }): GitHubIssueData {
     const date = new Date(feedback.timestamp * 1000);
     const formattedDate = date.toLocaleString('ja-JP', {
@@ -138,6 +139,13 @@ ${feedback.comment}
 
 `;
         }
+    }
+
+    // ユーザー名がある場合は追加
+    if (feedback.userName) {
+        body += `**報告者:** ${feedback.userName}
+
+`;
     }
 
     body += `**技術情報:**

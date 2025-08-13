@@ -71,7 +71,7 @@ async function generateTaskTitle(comment: string): Promise<string> {
 /**
  * フィードバックからタスクデータを作成
  */
-export async function createTaskDataFromFeedback(feedback: FeedbackRecord, errorDetails?: any, githubRepository?: string): Promise<CreateTaskRequest> {
+export async function createTaskDataFromFeedback(feedback: FeedbackRecord, errorDetails?: any, githubRepository?: string, userName?: string | null): Promise<CreateTaskRequest> {
   const { comment, screenshotData, url } = feedback;
   // URLの優先順位: url > screenshotData.tabUrl > errorDetails.pageUrl
   const tabUrl = url || screenshotData?.tabUrl || errorDetails?.pageUrl || 'URL不明';
@@ -89,6 +89,9 @@ ${comment}
 - URL: ${tabUrl}
 - タイトル: ${tabTitle}
 ${screenshotUrl ? `- スクリーンショット: ${screenshotUrl}` : ''}
+${userName ? `
+## 報告者
+${userName}` : ''}
 
 ## 受信日時
 ${new Date(feedback.timestamp * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`;
@@ -153,10 +156,11 @@ export async function createTaskFromFeedback(
   feedback: FeedbackRecord,
   apiKey: string,
   errorDetails?: any,
-  githubRepository?: string
+  githubRepository?: string,
+  userName?: string | null
 ): Promise<{ success: boolean; taskId?: number; taskUrl?: string; error?: string }> {
   try {
-    const taskData = await createTaskDataFromFeedback(feedback, errorDetails, githubRepository);
+    const taskData = await createTaskDataFromFeedback(feedback, errorDetails, githubRepository, userName);
     
     console.log('タスク管理サーバにタスクを作成します:', {
       url: TASK_SERVER_API_URL,

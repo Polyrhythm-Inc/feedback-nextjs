@@ -38,6 +38,7 @@ model Feedback {
   timestamp        Int
   userAgent        String?  @map("user_agent") @db.VarChar(512)
   url              String?  @db.VarChar(2048)
+  userName         String?  @map("user_name") @db.VarChar(255)
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
