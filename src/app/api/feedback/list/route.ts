@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaginatedFeedback, getFeedbackStats } from '@/lib/database';
+import { isPowerUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    // 権限チェック
+    const hostname = request.headers.get('host') || 'feedback-suite.polyrhythm.tokyo';
+    const isAuthorized = await isPowerUser(hostname);
+    
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { 
+          error: 'アクセス権限がありません',
+          details: 'このAPIにアクセスするにはパワーユーザー権限が必要です'
+        },
+        { status: 403 }
+      );
+    }
     // URLパラメータからページ番号と件数を取得
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1', 10);

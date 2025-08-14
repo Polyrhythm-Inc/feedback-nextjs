@@ -49,3 +49,42 @@ export async function getAuthenticatedUser(request: NextRequest) {
     return null;
   }
 }
+
+/**
+ * ユーザーのロール情報を取得
+ * @param hostname ホスト名
+ * @returns ロール情報またはnull
+ */
+export async function getUserRole(hostname: string) {
+  try {
+    // 認証サーバーからユーザー情報を取得
+    const response = await fetch(`https://auth.feedback-suite.polyrhythm.tokyo/api/app/me?hostname=${encodeURIComponent(hostname)}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch user role:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.role || null;
+  } catch (error) {
+    console.error('Error fetching user role:', error);
+    return null;
+  }
+}
+
+/**
+ * ユーザーがパワーユーザーかどうかを確認
+ * @param hostname ホスト名
+ * @returns パワーユーザーの場合true
+ */
+export async function isPowerUser(hostname: string): Promise<boolean> {
+  const role = await getUserRole(hostname);
+  return role === 'power_user' || role === 'admin';
+}

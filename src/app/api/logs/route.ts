@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isPowerUser } from '@/lib/auth';
 
 // CORS対応のヘッダー
 const corsHeaders = {
@@ -78,6 +79,20 @@ export async function POST(request: NextRequest) {
 // エラーログ一覧取得
 export async function GET(request: NextRequest) {
     try {
+        // 権限チェック
+        const hostname = request.headers.get('host') || 'feedback-suite.polyrhythm.tokyo';
+        const isAuthorized = await isPowerUser(hostname);
+        
+        if (!isAuthorized) {
+            return NextResponse.json(
+                { 
+                    error: 'アクセス権限がありません',
+                    details: 'このAPIにアクセスするにはパワーユーザー権限が必要です'
+                },
+                { status: 403, headers: corsHeaders }
+            );
+        }
+
         const url = new URL(request.url);
         const limitParam = url.searchParams.get('limit');
         const limit = limitParam ? parseInt(limitParam) || 50 : 50;
