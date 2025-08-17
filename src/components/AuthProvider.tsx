@@ -58,7 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             if (response.ok) {
               const data = await response.json();
-              setRole(data.role || null);
+              setRole(data.user?.role || null);
             }
           } catch (error) {
             console.error('Failed to fetch user role:', error);
