@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { checkAuth } from '@polyrhythm-inc/nextjs-auth-client';
+import { checkIsPowerUser } from './roleUtils';
 
 /**
  * Bearerトークンから認証ユーザー情報を取得
@@ -86,5 +87,5 @@ export async function getUserRole(hostname: string) {
  */
 export async function isPowerUser(hostname: string): Promise<boolean> {
   const role = await getUserRole(hostname);
-  return role === 'power_user' || role === 'admin';
+  return checkIsPowerUser(role);
 }

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, checkAuthStatus, getClientLoginUrl } from '@polyrhythm-inc/nextjs-auth-client';
+import { checkIsPowerUser } from '@/lib/roleUtils';
 
 interface AuthContextType {
   user: User | null;
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isPowerUser = role === 'power_user' || role === 'admin';
+  const isPowerUser = checkIsPowerUser(role);
 
   const redirectToLogin = () => {
     const loginUrl = getClientLoginUrl();
