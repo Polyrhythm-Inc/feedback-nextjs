@@ -53,13 +53,13 @@ async function generateTaskTitle(comment: string): Promise<string> {
     const prompt = `以下のフィードバックコメントを15文字以内で要約してください。要約のみを返してください。
 
 コメント: ${comment}`;
-    
+
     const result = await model.generateContent(prompt);
     const summary = result.response.text().trim();
-    
+
     // 要約が長すぎる場合は切り詰める
     const truncatedSummary = summary.length > 30 ? summary.slice(0, 30) + '...' : summary;
-    
+
     return `[FB] ${truncatedSummary}`;
   } catch (error) {
     console.error('Gemini APIエラー:', error);
@@ -77,10 +77,10 @@ export async function createTaskDataFromFeedback(feedback: FeedbackRecord, error
   const tabUrl = url || screenshotData?.tabUrl || errorDetails?.pageUrl || 'URL不明';
   const tabTitle = screenshotData?.tabTitle || 'ページタイトル不明';
   const screenshotUrl = screenshotData?.screenshotUrl || '';
-  
+
   // タイトルを生成（コメントの要約を使用）
   const title = await generateTaskTitle(comment);
-  
+
   // 説明文を作成
   let description = `## フィードバック内容
 ${comment}
@@ -88,7 +88,7 @@ ${comment}
 ## ページ情報
 - URL: ${tabUrl}
 - タイトル: ${tabTitle}
-${screenshotUrl ? `- スクリーンショット: ${screenshotUrl}` : ''}
+${screenshotUrl ? `- スクリーンショット: ${screenshotUrl} (curlコマンドで/tmpフォルダ内にダウンロードして読み取ってください)` : ''}
 ${userName ? `
 ## 報告者
 ${userName}` : ''}
@@ -99,27 +99,27 @@ ${new Date(feedback.timestamp * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/
   // errorDetailsがある場合は詳細情報を追加
   if (errorDetails) {
     description += `\n\n## エラー詳細情報`;
-    
+
     if (errorDetails.source) {
       description += `\n- ソース: ${errorDetails.source}`;
     }
-    
+
     if (errorDetails.pageUrl) {
       description += `\n- ページURL: ${errorDetails.pageUrl}`;
     }
-    
+
     if (errorDetails.userAgent) {
       description += `\n- ユーザーエージェント: ${errorDetails.userAgent}`;
     }
-    
+
     if (errorDetails.stack) {
       description += `\n\n### スタックトレース\n\`\`\`\n${errorDetails.stack}\n\`\`\``;
     }
-    
+
     // その他のプロパティも含める
     const knownProps = ['source', 'pageUrl', 'userAgent', 'stack'];
     const otherProps = Object.keys(errorDetails).filter(key => !knownProps.includes(key));
-    
+
     if (otherProps.length > 0) {
       description += `\n\n### その他の情報`;
       for (const prop of otherProps) {
@@ -161,7 +161,7 @@ export async function createTaskFromFeedback(
 ): Promise<{ success: boolean; taskId?: number; taskUrl?: string; error?: string }> {
   try {
     const taskData = await createTaskDataFromFeedback(feedback, errorDetails, githubRepository, userName);
-    
+
     console.log('タスク管理サーバにタスクを作成します:', {
       url: TASK_SERVER_API_URL,
       title: taskData.title,
@@ -194,10 +194,10 @@ export async function createTaskFromFeedback(
         taskId: responseData.data.id,
         title: responseData.data.title,
       });
-      
+
       // タスクのURLを生成（推定）
       const taskUrl = `https://tasks.polyrhythm.tokyo/tasks/${responseData.data.id}`;
-      
+
       return {
         success: true,
         taskId: responseData.data.id,
