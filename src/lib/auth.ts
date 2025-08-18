@@ -61,6 +61,8 @@ export async function getUserRole(hostname: string, request?: NextRequest) {
   try {
     // リクエストからCookieを取得
     const cookieHeader = request?.headers.get('cookie') || '';
+    console.log('request.cookies', request?.cookies);
+    console.log('cookieHeader', cookieHeader);
 
     // 認証サーバーからユーザー情報を取得
     const response = await fetch(`https://auth.feedback-suite.polyrhythm.tokyo/api/app/me?hostname=${encodeURIComponent(hostname)}`, {
