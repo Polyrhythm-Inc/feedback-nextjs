@@ -1,28 +1,64 @@
 import { jest } from '@jest/globals';
+import { NextRequest } from 'next/server';
 import { GET } from '@/app/api/feedback/list/route';
 import { mockFeedbackRecord, mockStats } from '../../../../utils/test-utils';
 
 // データベース操作のモック
-const mockGetAllFeedback = jest.fn() as jest.MockedFunction<any>;
-const mockGetFeedbackStats = jest.fn() as jest.MockedFunction<any>;
+const mockGetPaginatedFeedback = jest.fn();
+const mockGetFeedbackStats = jest.fn();
 
-jest.mock('@/lib/database', () => ({
-  getAllFeedback: mockGetAllFeedback,
+// 権限チェックのモック  
+const mockIsPowerUser = jest.fn();
+
+// モジュールをモック
+jest.unstable_mockModule('@/lib/database', () => ({
+  getPaginatedFeedback: mockGetPaginatedFeedback,
   getFeedbackStats: mockGetFeedbackStats,
+}));
+
+jest.unstable_mockModule('@/lib/auth', () => ({
+  isPowerUser: mockIsPowerUser,
 }));
 
 describe('/api/feedback/list', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // fetchのモック
+    global.fetch = jest.fn() as jest.MockedFunction<any>;
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('GET', () => {
+    const createMockRequest = (searchParams = {}) => {
+      const url = new URL('http://localhost:3000/api/feedback/list');
+      Object.entries(searchParams).forEach(([key, value]) => {
+        url.searchParams.set(key, String(value));
+      });
+      return new NextRequest(url, {
+        headers: {
+          'host': 'feedback-suite.polyrhythm.tokyo',
+          'cookie': 'feedback-suite.polyrhythm.tokyo_user_prod_session=test-session'
+        }
+      });
+    };
+
     it('should return feedback list successfully', async () => {
       const mockRecords = [mockFeedbackRecord];
-      mockGetAllFeedback.mockResolvedValue(mockRecords);
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockResolvedValue({
+        feedbacks: mockRecords,
+        total: 1,
+        page: 1,
+        limit: 50,
+        totalPages: 1
+      });
       mockGetFeedbackStats.mockResolvedValue(mockStats);
 
-      const response = await GET();
+      const request = createMockRequest();
+      const response = await GET(request);
       const json = await response.json();
 
       expect(response.status).toBe(200);
@@ -36,16 +72,29 @@ describe('/api/feedback/list', () => {
       });
       expect(json.stats).toEqual(mockStats);
       expect(json.count).toBe(1);
+      expect(json.total).toBe(1);
+      expect(json.page).toBe(1);
+      expect(json.limit).toBe(50);
+      expect(json.totalPages).toBe(1);
 
-      expect(mockGetAllFeedback).toHaveBeenCalledTimes(1);
+      expect(mockIsPowerUser).toHaveBeenCalledWith('feedback-suite.polyrhythm.tokyo', request);
+      expect(mockGetPaginatedFeedback).toHaveBeenCalledWith(1, 50);
       expect(mockGetFeedbackStats).toHaveBeenCalledTimes(1);
     });
 
     it('should return empty list when no feedback exists', async () => {
-      mockGetAllFeedback.mockResolvedValue([]);
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockResolvedValue({
+        feedbacks: [],
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 0
+      });
       mockGetFeedbackStats.mockResolvedValue({ total: 0, today: 0, thisWeek: 0 });
 
-      const response = await GET();
+      const request = createMockRequest();
+      const response = await GET(request);
       const json = await response.json();
 
       expect(response.status).toBe(200);
@@ -61,10 +110,18 @@ describe('/api/feedback/list', () => {
         { ...mockFeedbackRecord, id: 2, comment: '2つ目のコメント' },
         { ...mockFeedbackRecord, id: 3, comment: '3つ目のコメント' },
       ];
-      mockGetAllFeedback.mockResolvedValue(mockRecords);
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockResolvedValue({
+        feedbacks: mockRecords,
+        total: 3,
+        page: 1,
+        limit: 50,
+        totalPages: 1
+      });
       mockGetFeedbackStats.mockResolvedValue({ total: 3, today: 1, thisWeek: 2 });
 
-      const response = await GET();
+      const request = createMockRequest();
+      const response = await GET(request);
       const json = await response.json();
 
       expect(response.status).toBe(200);
@@ -77,11 +134,13 @@ describe('/api/feedback/list', () => {
       expect(json.stats.total).toBe(3);
     });
 
-    it('should return 500 when getAllFeedback fails', async () => {
-      mockGetAllFeedback.mockRejectedValue(new Error('Database error'));
+    it('should return 500 when getPaginatedFeedback fails', async () => {
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockRejectedValue(new Error('Database error'));
       mockGetFeedbackStats.mockResolvedValue(mockStats);
 
-      const response = await GET();
+      const request = createMockRequest();
+      const response = await GET(request);
       const json = await response.json();
 
       expect(response.status).toBe(500);
@@ -90,10 +149,18 @@ describe('/api/feedback/list', () => {
     });
 
     it('should return 500 when getFeedbackStats fails', async () => {
-      mockGetAllFeedback.mockResolvedValue([]);
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockResolvedValue({
+        feedbacks: [],
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 0
+      });
       mockGetFeedbackStats.mockRejectedValue(new Error('Stats error'));
 
-      const response = await GET();
+      const request = createMockRequest();
+      const response = await GET(request);
       const json = await response.json();
 
       expect(response.status).toBe(500);
@@ -108,10 +175,18 @@ describe('/api/feedback/list', () => {
         createdAt: new Date('2023-01-01T00:00:00.000Z'),
         updatedAt: new Date('2023-01-01T00:00:00.000Z'),
       };
-      mockGetAllFeedback.mockResolvedValue([mockRecord]);
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockResolvedValue({
+        feedbacks: [mockRecord],
+        total: 1,
+        page: 1,
+        limit: 50,
+        totalPages: 1
+      });
       mockGetFeedbackStats.mockResolvedValue(mockStats);
 
-      const response = await GET();
+      const request = createMockRequest();
+      const response = await GET(request);
       const json = await response.json();
 
       expect(response.status).toBe(200);
@@ -129,10 +204,18 @@ describe('/api/feedback/list', () => {
         'timestamp', 'userAgent', 'createdAt', 'updatedAt'
       ];
       
-      mockGetAllFeedback.mockResolvedValue([mockFeedbackRecord]);
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockResolvedValue({
+        feedbacks: [mockFeedbackRecord],
+        total: 1,
+        page: 1,
+        limit: 50,
+        totalPages: 1
+      });
       mockGetFeedbackStats.mockResolvedValue(mockStats);
 
-      const response = await GET();
+      const request = createMockRequest();
+      const response = await GET(request);
       const json = await response.json();
 
       expect(response.status).toBe(200);
@@ -144,15 +227,53 @@ describe('/api/feedback/list', () => {
     });
 
     it('should handle unknown error types', async () => {
-      mockGetAllFeedback.mockRejectedValue('Unknown error');
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockRejectedValue('Unknown error');
       mockGetFeedbackStats.mockResolvedValue(mockStats);
 
-      const response = await GET();
+      const request = createMockRequest();
+      const response = await GET(request);
       const json = await response.json();
 
       expect(response.status).toBe(500);
       expect(json.error).toBe('データ取得中にエラーが発生しました');
       expect(json.details).toBe('不明なエラー');
+    });
+    
+    it('should return 403 when user is not a power user', async () => {
+      mockIsPowerUser.mockResolvedValue(false);
+
+      const request = createMockRequest();
+      const response = await GET(request);
+      const json = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(json.error).toBe('アクセス権限がありません');
+      expect(json.details).toBe('このAPIにアクセスするにはパワーユーザー権限が必要です');
+      expect(mockGetPaginatedFeedback).not.toHaveBeenCalled();
+      expect(mockGetFeedbackStats).not.toHaveBeenCalled();
+    });
+    
+    it('should support pagination parameters', async () => {
+      mockIsPowerUser.mockResolvedValue(true);
+      mockGetPaginatedFeedback.mockResolvedValue({
+        feedbacks: [],
+        total: 100,
+        page: 2,
+        limit: 25,
+        totalPages: 4
+      });
+      mockGetFeedbackStats.mockResolvedValue(mockStats);
+
+      const request = createMockRequest({ page: '2', limit: '25' });
+      const response = await GET(request);
+      const json = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(mockGetPaginatedFeedback).toHaveBeenCalledWith(2, 25);
+      expect(json.page).toBe(2);
+      expect(json.limit).toBe(25);
+      expect(json.totalPages).toBe(4);
     });
   });
 }); 

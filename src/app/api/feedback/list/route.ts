@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     // 権限チェック
     const hostname = request.headers.get('host') || 'feedback-suite.polyrhythm.tokyo';
-    const isAuthorized = await isPowerUser(hostname);
+    const isAuthorized = await isPowerUser(hostname, request);
     
     if (!isAuthorized) {
       return NextResponse.json(

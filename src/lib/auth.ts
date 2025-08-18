@@ -54,16 +54,21 @@ export async function getAuthenticatedUser(request: NextRequest) {
 /**
  * ユーザーのロール情報を取得
  * @param hostname ホスト名
+ * @param request NextRequest object (オプション - Cookieを転送するため)
  * @returns ロール情報またはnull
  */
-export async function getUserRole(hostname: string) {
+export async function getUserRole(hostname: string, request?: NextRequest) {
   try {
+    // リクエストからCookieを取得
+    const cookieHeader = request?.headers.get('cookie') || '';
+    
     // 認証サーバーからユーザー情報を取得
     const response = await fetch(`https://auth.feedback-suite.polyrhythm.tokyo/api/app/me?hostname=${encodeURIComponent(hostname)}`, {
       method: 'GET',
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        // クライアントからのCookieを転送
+        'Cookie': cookieHeader,
       },
     });
 
@@ -83,9 +88,10 @@ export async function getUserRole(hostname: string) {
 /**
  * ユーザーがパワーユーザーかどうかを確認
  * @param hostname ホスト名
+ * @param request NextRequest object (オプション - Cookieを転送するため)
  * @returns パワーユーザーの場合true
  */
-export async function isPowerUser(hostname: string): Promise<boolean> {
-  const role = await getUserRole(hostname);
+export async function isPowerUser(hostname: string, request?: NextRequest): Promise<boolean> {
+  const role = await getUserRole(hostname, request);
   return checkIsPowerUser(role);
 }
