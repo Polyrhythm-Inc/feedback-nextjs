@@ -34,6 +34,16 @@ export interface ScreenshotDataRecord {
   updatedAt: Date;
 }
 
+// DOMツリーデータをデコードするヘルパー関数
+function decodeDomTree(encodedDomTree: string): string {
+  try {
+    return Buffer.from(encodedDomTree, 'base64').toString('utf8');
+  } catch (error) {
+    console.warn('DOMツリーのデコードに失敗しました、元のデータを返します:', error);
+    return encodedDomTree; // デコードに失敗した場合は元のデータを返す（後方互換性のため）
+  }
+}
+
 export interface ScreenshotDataCreateData {
   screenshotUrl: string;
   domTree: string;
@@ -55,10 +65,13 @@ export interface FeedbackCreateDataNew {
 // スクリーンショットデータの挿入
 export async function insertScreenshotData(data: ScreenshotDataCreateData): Promise<string> {
   try {
+    // DOMツリーデータをBase64エンコードして特殊文字問題を回避
+    const encodedDomTree = Buffer.from(data.domTree, 'utf8').toString('base64');
+    
     const screenshotData = await prisma.screenshotData.create({
       data: {
         screenshotUrl: data.screenshotUrl,
-        domTree: data.domTree,
+        domTree: encodedDomTree,
         tabUrl: data.tabUrl,
         tabTitle: data.tabTitle,
         timestamp: Math.floor(data.timestamp / 1000), // ミリ秒を秒に変換
@@ -120,7 +133,14 @@ export async function getAllFeedback(): Promise<FeedbackRecord[]> {
       }
     });
 
-    return feedbacks;
+    // DOMツリーをデコード
+    return feedbacks.map(feedback => ({
+      ...feedback,
+      screenshotData: feedback.screenshotData ? {
+        ...feedback.screenshotData,
+        domTree: decodeDomTree(feedback.screenshotData.domTree)
+      } : null
+    }));
   } catch (error) {
     console.error('フィードバック取得エラー:', error);
     throw new Error('フィードバックの取得に失敗しました');
@@ -153,10 +173,19 @@ export async function getPaginatedFeedback(page: number = 1, limit: number = 50)
       take: limit
     });
 
+    // DOMツリーをデコード
+    const decodedFeedbacks = feedbacks.map(feedback => ({
+      ...feedback,
+      screenshotData: feedback.screenshotData ? {
+        ...feedback.screenshotData,
+        domTree: decodeDomTree(feedback.screenshotData.domTree)
+      } : null
+    }));
+
     const totalPages = Math.ceil(total / limit);
 
     return {
-      feedbacks,
+      feedbacks: decodedFeedbacks,
       total,
       page,
       limit,
@@ -180,7 +209,14 @@ export async function getFeedbackById(id: number): Promise<FeedbackRecord | null
 
     if (!feedback) return null;
 
-    return feedback;
+    // DOMツリーをデコード
+    return {
+      ...feedback,
+      screenshotData: feedback.screenshotData ? {
+        ...feedback.screenshotData,
+        domTree: decodeDomTree(feedback.screenshotData.domTree)
+      } : null
+    };
   } catch (error) {
     console.error('フィードバック取得エラー:', error);
     throw new Error('フィードバックの取得に失敗しました');
