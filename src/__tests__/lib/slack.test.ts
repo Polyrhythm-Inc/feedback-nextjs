@@ -93,7 +93,7 @@ describe('Slack通知機能', () => {
             comment: 'テストフィードバック',
             tabUrl: 'https://example.com/page',
             tabTitle: 'サンプルページ',
-            timestamp: '2024-12-23T10:30:00.000Z',
+            timestamp: 1734944285, // 秒単位のUnix時間（2024-12-23 08:58:05 UTC）
             userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             screenshotUrl: 'https://s3.amazonaws.com/bucket/screenshot.png'
         };
@@ -121,7 +121,7 @@ describe('Slack通知機能', () => {
                 },
                 {
                     type: 'mrkdwn',
-                    text: '*投稿時刻:*\n2024/12/23 19:30:00'
+                    text: '*投稿時刻:*\n2024/12/23 17:58:05'
                 }
             ]);
 
@@ -155,6 +155,45 @@ describe('Slack通知機能', () => {
 
             expect(message.blocks).toHaveLength(5); // header + 3つのsection + context
         });
+
+        it('timestampが秒単位（Unix時間）の場合は正しくミリ秒に変換される', () => {
+            // 秒単位のUnix時間（1734944285 = 2024-12-23 08:58:05 UTC）
+            const dataWithUnixSeconds = { 
+                ...mockFeedbackData, 
+                timestamp: 1734944285 
+            };
+
+            const message = createFeedbackNotificationMessage(dataWithUnixSeconds);
+
+            // 日本時間で表示されることを確認（UTC+9）
+            expect(message.blocks![1].fields![1].text).toBe('*投稿時刻:*\n2024/12/23 17:58:05');
+        });
+
+        it('timestampがミリ秒単位の場合はそのまま使用される', () => {
+            // ミリ秒単位の時間
+            const dataWithMilliseconds = { 
+                ...mockFeedbackData, 
+                timestamp: 1734944285000 
+            };
+
+            const message = createFeedbackNotificationMessage(dataWithMilliseconds);
+
+            // 日本時間で表示されることを確認（UTC+9）
+            expect(message.blocks![1].fields![1].text).toBe('*投稿時刻:*\n2024/12/23 17:58:05');
+        });
+
+        it('timestampが文字列（秒単位）の場合は適切に処理される', () => {
+            // 文字列形式の秒単位時間
+            const dataWithStringTimestamp = { 
+                ...mockFeedbackData, 
+                timestamp: '1734944285'  // 秒単位の文字列
+            };
+
+            const message = createFeedbackNotificationMessage(dataWithStringTimestamp);
+
+            // 文字列は Number() で変換されて秒単位として扱われる
+            expect(message.blocks![1].fields![1].text).toBe('*投稿時刻:*\n2024/12/23 17:58:05');
+        });
     });
 
     describe('notifyFeedbackReceived', () => {
@@ -163,7 +202,7 @@ describe('Slack通知機能', () => {
             comment: 'テストフィードバック',
             tabUrl: 'https://example.com/page',
             tabTitle: 'サンプルページ',
-            timestamp: '2024-12-23T10:30:00.000Z',
+            timestamp: 1734944285, // 秒単位のUnix時間
             userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         };
 

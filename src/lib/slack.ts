@@ -75,7 +75,25 @@ export async function sendSlackMessage(message: SlackMessage): Promise<boolean> 
  * フィードバック通知用のSlackメッセージを生成
  */
 export function createFeedbackNotificationMessage(data: FeedbackNotificationData): SlackMessage {
-    const timestamp = new Date(data.timestamp).toLocaleString('ja-JP', {
+    // timestampを適切な形式に変換
+    let timestampMs: number;
+    
+    if (typeof data.timestamp === 'number') {
+        // 数値の場合：秒単位（< 10000000000）ならミリ秒に変換
+        timestampMs = data.timestamp < 10000000000 ? data.timestamp * 1000 : data.timestamp;
+    } else {
+        // 文字列の場合：数値に変換
+        const numericTimestamp = Number(data.timestamp);
+        if (isNaN(numericTimestamp)) {
+            // 文字列がISO形式などの場合はDateコンストラクタで処理
+            timestampMs = new Date(data.timestamp).getTime();
+        } else {
+            // 数値文字列の場合：秒単位ならミリ秒に変換
+            timestampMs = numericTimestamp < 10000000000 ? numericTimestamp * 1000 : numericTimestamp;
+        }
+    }
+    
+    const timestamp = new Date(timestampMs).toLocaleString('ja-JP', {
         timeZone: 'Asia/Tokyo',
         year: 'numeric',
         month: '2-digit',
