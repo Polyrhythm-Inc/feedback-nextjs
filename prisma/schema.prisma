@@ -22,6 +22,7 @@ model ScreenshotData {
   tabTitle      String   @map("tab_title") @db.VarChar(512)
   timestamp     Int
   pageInfo      Json?    @map("page_info")
+  tempComment   String?  @map("temp_comment") @db.Text
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

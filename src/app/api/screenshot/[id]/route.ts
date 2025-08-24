@@ -43,6 +43,7 @@ export async function GET(
             tabTitle: screenshotData.tabTitle,
             timestamp: screenshotData.timestamp,
             pageInfo: screenshotData.pageInfo,
+            tempComment: screenshotData.tempComment || '',
             createdAt: screenshotData.createdAt,
         };
 

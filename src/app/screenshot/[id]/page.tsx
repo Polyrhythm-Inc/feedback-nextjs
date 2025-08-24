@@ -11,6 +11,7 @@ interface ScreenshotData {
   tabTitle: string;
   timestamp: number;
   pageInfo?: any;
+  tempComment?: string;
 }
 
 export default function ScreenshotDetailPage() {
@@ -24,6 +25,8 @@ export default function ScreenshotDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSavingTemp, setIsSavingTemp] = useState(false);
+  const [tempSaveTimeout, setTempSaveTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // スクリーンショットデータの取得
   useEffect(() => {
@@ -38,6 +41,10 @@ export default function ScreenshotDetailPage() {
         
         const data = await response.json();
         setScreenshotData(data);
+        // 一時コメントが存在する場合は初期値として設定
+        if (data.tempComment) {
+          setComment(data.tempComment);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : '予期しないエラーが発生しました');
       } finally {
@@ -49,6 +56,59 @@ export default function ScreenshotDetailPage() {
       fetchScreenshotData();
     }
   }, [screenshotId]);
+
+  // 一時コメントの保存
+  const saveTempComment = async (commentText: string) => {
+    if (!screenshotId) return;
+    
+    try {
+      setIsSavingTemp(true);
+      const response = await fetch(`/api/screenshot/${screenshotId}/temp-comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tempComment: commentText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('一時保存に失敗しました');
+      }
+    } catch (err) {
+      console.error('一時保存エラー:', err);
+    } finally {
+      setIsSavingTemp(false);
+    }
+  };
+
+  // コメントの変更時に一時保存をスケジュール
+  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newComment = e.target.value;
+    setComment(newComment);
+
+    // 既存のタイマーをクリア
+    if (tempSaveTimeout) {
+      clearTimeout(tempSaveTimeout);
+    }
+
+    // 2秒後に一時保存を実行
+    const timeout = setTimeout(() => {
+      saveTempComment(newComment);
+    }, 2000);
+    
+    setTempSaveTimeout(timeout);
+  };
+
+  // コンポーネントのクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (tempSaveTimeout) {
+        clearTimeout(tempSaveTimeout);
+      }
+    };
+  }, [tempSaveTimeout]);
 
   // フィードバックの送信
   const handleSubmit = async (e: React.FormEvent) => {
@@ -188,19 +248,31 @@ export default function ScreenshotDetailPage() {
             {/* コメント入力フォーム */}
             <form onSubmit={handleSubmit}>
               <div className="mb-6">
-                <label htmlFor="comment" className="block text-lg font-semibold text-gray-900 mb-2">
-                  コメント
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="comment" className="block text-lg font-semibold text-gray-900">
+                    コメント
+                  </label>
+                  {isSavingTemp && (
+                    <span className="text-sm text-blue-600 flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      一時保存中...
+                    </span>
+                  )}
+                </div>
                 <textarea
                   id="comment"
                   value={comment}
-                  onChange={(e) => setComment(e.target.value)}
+                  onChange={handleCommentChange}
                   rows={6}
                   className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="フィードバックやご意見をお聞かせください..."
                   disabled={isSubmitting}
                   required
                 />
+                <p className="mt-1 text-xs text-gray-500">※ 入力内容は自動的に一時保存されます</p>
               </div>
 
               {/* エラーメッセージ */}
