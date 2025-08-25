@@ -101,6 +101,14 @@ export default function ScreenshotDetailPage() {
     setTempSaveTimeout(timeout);
   };
 
+  // キーボードショートカット（Command+Enter / Ctrl+Enter）での送信
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isSubmitting) {
+      e.preventDefault();
+      handleSubmit(e as any);
+    }
+  };
+
   // コンポーネントのクリーンアップ
   useEffect(() => {
     return () => {
@@ -266,9 +274,10 @@ export default function ScreenshotDetailPage() {
                   id="comment"
                   value={comment}
                   onChange={handleCommentChange}
+                  onKeyDown={handleKeyDown}
                   rows={6}
                   className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="フィードバックやご意見をお聞かせください..."
+                  placeholder="フィードバックやご意見をお聞かせください... (Command+Enterで送信)"
                   disabled={isSubmitting}
                   required
                 />
