@@ -77,7 +77,8 @@ async function processExternalApisInBackground(
         uploadedDataId || undefined, 
         errorDetails, 
         githubRepository,
-        githubIssueUrl
+        githubIssueUrl,
+        userName
       );
       console.log(`Slack通知処理完了: ${slackResult}`);
     } catch (error) {
@@ -230,13 +231,15 @@ async function processSlackNotification(
   uploadedDataId?: string,
   errorDetails?: any,
   githubRepository?: string,
-  githubIssueUrl?: string
+  githubIssueUrl?: string,
+  userName?: string
 ): Promise<string> {
   try {
     // URLとタイトルを取得
     let tabUrl = 'Unknown URL';
     let tabTitle = 'フィードバック';
     let screenshotUrl: string | undefined;
+    let projectName: string | undefined;
 
     if (feedbackData.url) {
       tabUrl = feedbackData.url;
@@ -251,6 +254,16 @@ async function processSlackNotification(
       tabTitle = `エラーレポート - ${uploadedDataId || 'unknown'}`;
     }
 
+    // プロジェクト名を取得
+    try {
+      const project = await findProjectByUrl(tabUrl);
+      if (project) {
+        projectName = project.displayName || project.name;
+      }
+    } catch (error) {
+      console.warn('プロジェクト情報の取得に失敗しました:', error);
+    }
+
     const notificationSent = await notifyFeedbackReceived({
       id: feedbackId.toString(),
       comment,
@@ -261,7 +274,9 @@ async function processSlackNotification(
       screenshotUrl,
       screenshotDataId: uploadedDataId,
       githubIssueUrl: githubIssueUrl,
-      githubRepository: githubRepository
+      githubRepository: githubRepository,
+      projectName: projectName,
+      reporterName: userName
     });
 
     if (notificationSent) {

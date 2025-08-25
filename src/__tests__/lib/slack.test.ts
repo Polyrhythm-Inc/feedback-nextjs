@@ -131,7 +131,7 @@ describe('Slack通知機能', () => {
             const message = createFeedbackTitleMessage(mockFeedbackData);
 
             expect(message.channel).toBe('C1234567890');
-            expect(message.text).toBe('📝 新しいフィードバック: サンプルページ');
+            expect(message.text).toBe('[FB]プロジェクト (匿名)');
             expect(message.blocks).toHaveLength(2); // header, section
 
             // ヘッダーブロックの確認
@@ -139,7 +139,7 @@ describe('Slack通知機能', () => {
                 type: 'header',
                 text: {
                     type: 'plain_text',
-                    text: '📝 新しいフィードバック'
+                    text: '[FB]プロジェクト (匿名)'
                 }
             });
 
@@ -156,6 +156,25 @@ describe('Slack通知機能', () => {
         it('SLACK_CHANNEL_IDが未設定の場合はデフォルトチャンネルを使用', () => {
             const message = createFeedbackTitleMessage(mockFeedbackData);
             expect(message.channel).toBe('#general');
+        });
+
+        it('プロジェクト名と報告者名が指定された場合は正しいタイトルを生成', () => {
+            const dataWithProject = {
+                ...mockFeedbackData,
+                projectName: 'Feedback Suite',
+                reporterName: '柚木'
+            };
+            
+            const message = createFeedbackTitleMessage(dataWithProject);
+
+            expect(message.text).toBe('[FB]Feedback Suite (柚木)');
+            expect(message.blocks![0]).toEqual({
+                type: 'header',
+                text: {
+                    type: 'plain_text',
+                    text: '[FB]Feedback Suite (柚木)'
+                }
+            });
         });
 
     });

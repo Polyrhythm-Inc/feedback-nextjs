@@ -33,6 +33,8 @@ export interface FeedbackNotificationData {
     screenshotDataId?: string;
     githubIssueUrl?: string;
     githubRepository?: string;
+    projectName?: string;
+    reporterName?: string;
 }
 
 /**
@@ -87,15 +89,18 @@ export async function sendSlackMessage(message: SlackMessage): Promise<{ success
 export function createFeedbackTitleMessage(data: FeedbackNotificationData): SlackMessage {
     const channelId = process.env.SLACK_CHANNEL_ID || '#general';
     
+    // タイトルの形式: [FB]{プロジェクト名} ({報告者名})
+    const titleText = `[FB]${data.projectName || 'プロジェクト'} (${data.reporterName || '匿名'})`;
+    
     return {
         channel: channelId,
-        text: `📝 新しいフィードバック: ${data.tabTitle}`,
+        text: titleText,
         blocks: [
             {
                 type: 'header',
                 text: {
                     type: 'plain_text',
-                    text: '📝 新しいフィードバック'
+                    text: titleText
                 }
             },
             {
