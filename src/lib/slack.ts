@@ -4,6 +4,7 @@
  */
 
 export interface SlackMessage {
+    channel: string;
     text: string;
     blocks?: SlackBlock[];
     thread_ts?: string;
@@ -35,20 +36,21 @@ export interface FeedbackNotificationData {
 }
 
 /**
- * SlackにWebhook経由でメッセージを送信
+ * Slack Web API経由でメッセージを送信
  */
 export async function sendSlackMessage(message: SlackMessage): Promise<{ success: boolean; ts?: string }> {
-    const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+    const botToken = process.env.SLACK_BOT_TOKEN;
 
-    if (!webhookUrl) {
-        console.warn('SLACK_WEBHOOK_URL環境変数が設定されていません。Slack通知をスキップします。');
+    if (!botToken) {
+        console.warn('SLACK_BOT_TOKEN環境変数が設定されていません。Slack通知をスキップします。');
         return { success: false };
     }
 
     try {
-        const response = await fetch(webhookUrl, {
+        const response = await fetch('https://slack.com/api/chat.postMessage', {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${botToken}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(message),
@@ -64,20 +66,15 @@ export async function sendSlackMessage(message: SlackMessage): Promise<{ success
             return { success: false };
         }
 
-        let ts: string | undefined;
-        try {
-            const responseData = await response.text();
-            if (responseData && responseData !== 'ok') {
-                const parsedResponse = JSON.parse(responseData);
-                ts = parsedResponse.ts;
-            }
-        } catch (parseError) {
-            // Webhookからはtsが返ってこないことが多いため、警告程度に留める
-            console.log('Slack応答の解析をスキップ（Webhookの場合は正常）');
+        const responseData = await response.json();
+
+        if (!responseData.ok) {
+            console.error('Slack API エラー:', responseData.error);
+            return { success: false };
         }
 
         console.log('Slack通知送信成功');
-        return { success: true, ts };
+        return { success: true, ts: responseData.ts };
     } catch (error) {
         console.error('Slack通知送信例外:', error);
         return { success: false };
@@ -88,7 +85,10 @@ export async function sendSlackMessage(message: SlackMessage): Promise<{ success
  * フィードバック通知用のタイトルメッセージを生成（スレッドの親メッセージ）
  */
 export function createFeedbackTitleMessage(data: FeedbackNotificationData): SlackMessage {
+    const channelId = process.env.SLACK_CHANNEL_ID || '#general';
+    
     return {
+        channel: channelId,
         text: `📝 新しいフィードバック: ${data.tabTitle}`,
         blocks: [
             {
@@ -113,6 +113,7 @@ export function createFeedbackTitleMessage(data: FeedbackNotificationData): Slac
  * フィードバック通知用の詳細メッセージを生成（スレッド内で使用）
  */
 export function createFeedbackDetailMessage(data: FeedbackNotificationData, threadTs: string): SlackMessage {
+    const channelId = process.env.SLACK_CHANNEL_ID || '#general';
     // timestampを適切な形式に変換
     let timestampMs: number;
     
@@ -142,6 +143,7 @@ export function createFeedbackDetailMessage(data: FeedbackNotificationData, thre
     });
 
     const message: SlackMessage = {
+        channel: channelId,
         text: `フィードバックの詳細`,
         thread_ts: threadTs,
         blocks: [
@@ -233,33 +235,26 @@ export async function notifyFeedbackReceived(data: FeedbackNotificationData): Pr
 
         console.log('Slackタイトル送信成功');
 
-        // 2. Webhookの場合はtsが取得できないため、少し待ってからダミーのtsで詳細を送信
-        // 実際のWebhook環境では、スレッドは作れないため、詳細は個別メッセージとして送信
-        let threadTs = titleResult.ts;
+        // 2. Bot APIではtsが確実に取得できるので、スレッドで詳細を送信
+        const threadTs = titleResult.ts;
         
         if (!threadTs) {
-            // Webhookの場合、tsが取得できない場合があるため、詳細を別メッセージとして送信
-            console.log('Webhook環境のため、詳細を別メッセージとして送信');
-            const detailMessage = createFeedbackDetailMessage(data, '');
-            // thread_tsを削除して通常メッセージとして送信
-            delete detailMessage.thread_ts;
-            
-            const detailResult = await sendSlackMessage(detailMessage);
-            return detailResult.success;
-        } else {
-            // tsが取得できた場合はスレッドで詳細を送信
-            console.log('スレッドで詳細を送信中...');
-            const detailMessage = createFeedbackDetailMessage(data, threadTs);
-            const detailResult = await sendSlackMessage(detailMessage);
-            
-            if (!detailResult.success) {
-                console.error('Slackスレッド詳細送信失敗');
-                return false;
-            }
-            
-            console.log('Slackスレッド詳細送信成功');
-            return true;
+            console.error('タイムスタンプが取得できませんでした');
+            return false;
         }
+
+        // スレッドで詳細を送信
+        console.log(`スレッドで詳細を送信中... (ts: ${threadTs})`);
+        const detailMessage = createFeedbackDetailMessage(data, threadTs);
+        const detailResult = await sendSlackMessage(detailMessage);
+        
+        if (!detailResult.success) {
+            console.error('Slackスレッド詳細送信失敗');
+            return false;
+        }
+        
+        console.log('Slackスレッド詳細送信成功');
+        return true;
     } catch (error) {
         console.error('フィードバック通知生成エラー:', error);
         return false;
@@ -270,7 +265,10 @@ export async function notifyFeedbackReceived(data: FeedbackNotificationData): Pr
  * GitHub Issue作成エラー通知用のSlackメッセージを生成
  */
 export function createGitHubIssueErrorMessage(feedbackId: number, error: string, projectName?: string, repoUrl?: string): SlackMessage {
+    const channelId = process.env.SLACK_CHANNEL_ID || '#general';
+    
     const message: SlackMessage = {
+        channel: channelId,
         text: `GitHub Issue作成に失敗しました`,
         blocks: [
             {
