@@ -6,6 +6,7 @@
 export interface SlackMessage {
     text: string;
     blocks?: SlackBlock[];
+    thread_ts?: string;
 }
 
 export interface SlackBlock {
@@ -36,12 +37,12 @@ export interface FeedbackNotificationData {
 /**
  * SlackにWebhook経由でメッセージを送信
  */
-export async function sendSlackMessage(message: SlackMessage): Promise<boolean> {
+export async function sendSlackMessage(message: SlackMessage): Promise<{ success: boolean; ts?: string }> {
     const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
     if (!webhookUrl) {
         console.warn('SLACK_WEBHOOK_URL環境変数が設定されていません。Slack通知をスキップします。');
-        return false;
+        return { success: false };
     }
 
     try {
@@ -60,21 +61,58 @@ export async function sendSlackMessage(message: SlackMessage): Promise<boolean> 
                 statusText: response.statusText,
                 error: errorText
             });
-            return false;
+            return { success: false };
+        }
+
+        let ts: string | undefined;
+        try {
+            const responseData = await response.text();
+            if (responseData && responseData !== 'ok') {
+                const parsedResponse = JSON.parse(responseData);
+                ts = parsedResponse.ts;
+            }
+        } catch (parseError) {
+            // Webhookからはtsが返ってこないことが多いため、警告程度に留める
+            console.log('Slack応答の解析をスキップ（Webhookの場合は正常）');
         }
 
         console.log('Slack通知送信成功');
-        return true;
+        return { success: true, ts };
     } catch (error) {
         console.error('Slack通知送信例外:', error);
-        return false;
+        return { success: false };
     }
 }
 
 /**
- * フィードバック通知用のSlackメッセージを生成
+ * フィードバック通知用のタイトルメッセージを生成（スレッドの親メッセージ）
  */
-export function createFeedbackNotificationMessage(data: FeedbackNotificationData): SlackMessage {
+export function createFeedbackTitleMessage(data: FeedbackNotificationData): SlackMessage {
+    return {
+        text: `📝 新しいフィードバック: ${data.tabTitle}`,
+        blocks: [
+            {
+                type: 'header',
+                text: {
+                    type: 'plain_text',
+                    text: '📝 新しいフィードバック'
+                }
+            },
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: `*${data.tabTitle}*\n<${data.tabUrl}|${data.tabUrl}>`
+                }
+            }
+        ]
+    };
+}
+
+/**
+ * フィードバック通知用の詳細メッセージを生成（スレッド内で使用）
+ */
+export function createFeedbackDetailMessage(data: FeedbackNotificationData, threadTs: string): SlackMessage {
     // timestampを適切な形式に変換
     let timestampMs: number;
     
@@ -104,15 +142,9 @@ export function createFeedbackNotificationMessage(data: FeedbackNotificationData
     });
 
     const message: SlackMessage = {
-        text: `新しいフィードバックが届きました！`,
+        text: `フィードバックの詳細`,
+        thread_ts: threadTs,
         blocks: [
-            {
-                type: 'header',
-                text: {
-                    type: 'plain_text',
-                    text: '📝 新しいフィードバック'
-                }
-            },
             {
                 type: 'section',
                 fields: [
@@ -123,19 +155,6 @@ export function createFeedbackNotificationMessage(data: FeedbackNotificationData
                     {
                         type: 'mrkdwn',
                         text: `*投稿時刻:*\n${timestamp}`
-                    }
-                ]
-            },
-            {
-                type: 'section',
-                fields: [
-                    {
-                        type: 'mrkdwn',
-                        text: `*ページタイトル:*\n${data.tabTitle}`
-                    },
-                    {
-                        type: 'mrkdwn',
-                        text: `*URL:*\n<${data.tabUrl}|${data.tabUrl}>`
                     }
                 ]
             },
@@ -199,12 +218,48 @@ export function createFeedbackNotificationMessage(data: FeedbackNotificationData
 }
 
 /**
- * フィードバック受信時のSlack通知を送信
+ * フィードバック受信時のSlack通知を送信（タイトル先行 + スレッド化）
  */
 export async function notifyFeedbackReceived(data: FeedbackNotificationData): Promise<boolean> {
     try {
-        const message = createFeedbackNotificationMessage(data);
-        return await sendSlackMessage(message);
+        // 1. タイトルメッセージを送信
+        const titleMessage = createFeedbackTitleMessage(data);
+        const titleResult = await sendSlackMessage(titleMessage);
+
+        if (!titleResult.success) {
+            console.error('Slackタイトル送信失敗');
+            return false;
+        }
+
+        console.log('Slackタイトル送信成功');
+
+        // 2. Webhookの場合はtsが取得できないため、少し待ってからダミーのtsで詳細を送信
+        // 実際のWebhook環境では、スレッドは作れないため、詳細は個別メッセージとして送信
+        let threadTs = titleResult.ts;
+        
+        if (!threadTs) {
+            // Webhookの場合、tsが取得できない場合があるため、詳細を別メッセージとして送信
+            console.log('Webhook環境のため、詳細を別メッセージとして送信');
+            const detailMessage = createFeedbackDetailMessage(data, '');
+            // thread_tsを削除して通常メッセージとして送信
+            delete detailMessage.thread_ts;
+            
+            const detailResult = await sendSlackMessage(detailMessage);
+            return detailResult.success;
+        } else {
+            // tsが取得できた場合はスレッドで詳細を送信
+            console.log('スレッドで詳細を送信中...');
+            const detailMessage = createFeedbackDetailMessage(data, threadTs);
+            const detailResult = await sendSlackMessage(detailMessage);
+            
+            if (!detailResult.success) {
+                console.error('Slackスレッド詳細送信失敗');
+                return false;
+            }
+            
+            console.log('Slackスレッド詳細送信成功');
+            return true;
+        }
     } catch (error) {
         console.error('フィードバック通知生成エラー:', error);
         return false;
@@ -287,7 +342,8 @@ export function createGitHubIssueErrorMessage(feedbackId: number, error: string,
 export async function notifyGitHubIssueError(feedbackId: number, error: string, projectName?: string, repoUrl?: string): Promise<boolean> {
     try {
         const message = createGitHubIssueErrorMessage(feedbackId, error, projectName, repoUrl);
-        return await sendSlackMessage(message);
+        const result = await sendSlackMessage(message);
+        return result.success;
     } catch (error) {
         console.error('GitHub Issueエラー通知生成エラー:', error);
         return false;
